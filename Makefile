@@ -1,0 +1,1 @@
+# Builds main executable, with it's src. run tests, and clean up

@@ -1,0 +1,1 @@
+# To build src files and export them into bin directory
