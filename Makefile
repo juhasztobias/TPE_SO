@@ -11,17 +11,27 @@ viewC=view.c
 baseBIN=$(mainC:.c=.o)
 viewBIN=$(viewC:.c=.o)
 
-all:
-	@cd $(SRC); make all; cd ..
+all: slave
 	@$(GCC) $(GCCFLAGS) -o $(baseBIN) $(mainC)
-	@$(GCC) $(GCCFLAGS) -o $(viewBIN) $(viewC)
+	# @$(GCC) $(GCCFLAGS) -o $(viewBIN) $(viewC)
 
+slave: 
+	@cd $(SRC); make all; cd ..
 try: all
 	@echo "Running test..."
 	@echo "===================="
 	@echo " "
-	@cd $(TEST); ../$(baseBIN) * | ../$(viewBIN)
-	@./$(baseBIN) | ./$(viewBIN)
+	@cd $(TEST); ../$(baseBIN) *
+	@echo " "
+	@echo "===================="
+	@echo "Done."
+	@make clean
+
+try_slave: slave
+	@echo "Running test..."
+	@echo "===================="
+	@echo " "
+	@cd $(TEST); ../src/bin/slave.o test.txt
 	@echo " "
 	@echo "===================="
 	@echo "Done."
