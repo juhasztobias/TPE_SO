@@ -13,25 +13,31 @@
 typedef int semaphore;
 extern semaphore data_available = 0;
 
-int main(void) {
+int main(void)
+{
     pid_t pid;
-    pid = fork();
-    if (pid == -1) {
-        perror("fork");
-        exit(EXIT_FAILURE);
+    for (int i = 0; i < 5; i++)
+    {
+        pid = fork();
+        if (pid == -1)
+        {
+            perror("fork");
+            exit(EXIT_FAILURE);
+        }
+        if (pid == 0)
+        {
+            char *slave_argv[] = {"slave", NULL};
+            execve("slave", slave_argv, NULL);
+            perror("execve");
+            exit(EXIT_FAILURE);
+        }
     }
-    if (pid == 0) {
-        char *slave_argv[] = {"slave", NULL};
-        execve("slave", slave_argv, NULL);
-        perror("execve");
-        exit(EXIT_FAILURE);
-    }
-
     int status;
     pid_t child_pid = waitpid(-1, &status, WAIT_DEFAULT);
     if (child_pid > 0)
         printf("El proceso padre espero al proceso hijo slave con PID: %d\n", child_pid);
-    else {
+    else
+    {
         perror("waitpid");
         exit(EXIT_FAILURE);
     }
@@ -40,7 +46,7 @@ int main(void) {
     while(LOOP) {
         esperar_resultado( ... );  // mejora la sync de los procesos
         publicar_resultado_en_shm( ... );
-        // le avisa a view 
+        // le avisa a view
         avisar_resultado_disponible( ... );  // puede ser con up o post(data_available);
     }
     */
