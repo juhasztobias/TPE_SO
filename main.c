@@ -3,10 +3,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/fcntl.h>
+#include <semaphore.h>
+
 
 #define READ_FD 0
 #define WRITE_FD 1
 #define WAIT_DEFAULT 0
+#define LOOP 1
+
+typedef int semaphore;
+extern semaphore data_available = 0;
 
 int main(void) {
     pid_t pid;
@@ -30,6 +36,14 @@ int main(void) {
         perror("waitpid");
         exit(EXIT_FAILURE);
     }
+
+    /*
+    while(LOOP) {
+        esperar_resultado( ... );
+        publicar_resultado_en_shm( ... );
+        avisar_resultado_disponible( ... );  puede ser con up o post(data_available);
+    }
+    */
 
     return 0;
 }
