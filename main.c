@@ -5,7 +5,6 @@
 #include <sys/fcntl.h>
 #include <semaphore.h>
 
-
 #define READ_FD 0
 #define WRITE_FD 1
 #define WAIT_DEFAULT 0
@@ -39,9 +38,10 @@ int main(void) {
 
     /*
     while(LOOP) {
-        esperar_resultado( ... );
+        esperar_resultado( ... );  // mejora la sync de los procesos
         publicar_resultado_en_shm( ... );
-        avisar_resultado_disponible( ... );  puede ser con up o post(data_available);
+        // le avisa a view 
+        avisar_resultado_disponible( ... );  // puede ser con up o post(data_available);
     }
     */
 

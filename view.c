@@ -11,6 +11,7 @@
 int view() {
     /*
     while (LOOP) {
+        // espera al main/master
         esperar_resultado( ... );  puede ser con down o wait(data_available);
         leer_resultado_de_shm( ... );
         imprimir_resultado_en_stdout( ... );
