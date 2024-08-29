@@ -7,3 +7,10 @@
 #define WRITE_FD 1
 #define WAIT_DEFAULT 0
 #define LOOP 1
+
+int main(){
+    char* ejemplo="md5sum view.c";
+    int i=system(ejemplo);
+    printf("%d",i);
+    return i;
+}
