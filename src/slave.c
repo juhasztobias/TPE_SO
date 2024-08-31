@@ -3,38 +3,38 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
+#define MD5_COMMAND "/sbin/md5sum "         // PATH AL MD5SUM en MacOS
+// #define MD5_COMMAND "/usr/bin/md5sum "   // PATH AL MD5SUM en Docker Linux
 #define READ_FD 0
 #define WRITE_FD 1
 #define WAIT_DEFAULT 0
 #define LOOP 1
 #define BUFFER_SIZE 1024
+#define COMMAND_SIZE 256
 
 int main(int argc, char *argv[]){
-    // char slaveBuffer[1024];
+    char file[BUFFER_SIZE];
+    pid_t pid = getpid();
+    fsync(0);
+    ssize_t buffer_read;
+    while((buffer_read = read(STDIN_FILENO, file, BUFFER_SIZE * sizeof(char))) > 0) {
+        char md5sum_command[COMMAND_SIZE];
+        sprintf(md5sum_command, "%s \'%s\'", MD5_COMMAND,file);
 
-    // // En el primero aparece el nombre del programa
-    // for(int i = 1; i < argc; i++){
-    //     sprintf(slaveBuffer, "md5sum \'%s\'", argv[i]);
-    //     system(slaveBuffer);
-    // }
+        FILE * fp = popen(md5sum_command, "r");
+        if (fp == NULL) {
+            perror("popen");
+            exit(EXIT_FAILURE);
+        }
 
-    // return 0;
-
-    int pipefd[2];
-    if (pipe(pipefd) == -1) {
-        perror("pipe");
-        exit(EXIT_FAILURE);
+        char md5Buffer[BUFFER_SIZE];
+        while(fgets(md5Buffer, sizeof(md5Buffer), fp) != NULL) {
+            char md5[BUFFER_SIZE];
+            sscanf(md5Buffer, "%s ", md5);
+            fprintf(stdout, "File: %s - MD5: %s - PID: %d\n", file, md5, pid);
+        }
+        // fprintf(stdout, "%d\n", pid);
+        pclose(fp);
     }
-    char readBuffer[BUFFER_SIZE];
-    ssize_t bytes_read;
-    while ((bytes_read = read(pipefd[READ_FD], readBuffer, sizeof(readBuffer))) > 0) {
-        sprintf(readBuffer, "md5sum \'%s\'", readBuffer);
-        system(readBuffer);
-    }
-    
-    close(pipefd[READ_FD]);
-    close(pipefd[WRITE_FD]);
-
     return 0;
 }

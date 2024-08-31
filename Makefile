@@ -40,6 +40,6 @@ try_slave: slave
 clean:
 	@echo "Cleaning up..."
 	@rm $(baseBIN)
-	@rm $(viewBIN)
+	# @rm $(viewBIN)
 	@cd $(SRC); make clean
 	@echo "Done."
