@@ -17,9 +17,10 @@ int main(int argc, char *argv[]){
     pid_t pid = getpid();
     fsync(0);
     ssize_t buffer_read;
+
     while((buffer_read = read(STDIN_FILENO, file, BUFFER_SIZE * sizeof(char))) > 0) {
         char md5sum_command[COMMAND_SIZE];
-        sprintf(md5sum_command, "%s \'%s\'", MD5_COMMAND,file);
+        sprintf(md5sum_command, "%s \'%s\'", MD5_COMMAND, file);
 
         FILE * fp = popen(md5sum_command, "r");
         if (fp == NULL) {
@@ -30,12 +31,19 @@ int main(int argc, char *argv[]){
     // estamos imprimiendo en pantalla/terminal directamente desde el slave
     // tenemos que pasarle por los pipes al main el dato formateado para que el main imprima por pantalla e inserte en la shm 
     
+
         char md5Buffer[BUFFER_SIZE];
         while(fgets(md5Buffer, sizeof(md5Buffer), fp) != NULL) {
             char md5[BUFFER_SIZE];
+
+            printf("Probando si entra al while.\n");
+
             sscanf(md5Buffer, "%s ", md5);
             fprintf(stdout, "File: %s - MD5: %s - PID: %d\n", file, md5, pid);
         }
+        
+        printf("Hasta aca todo ok.\n");
+
         // fprintf(stdout, "%d\n", pid);
         pclose(fp);
     }
