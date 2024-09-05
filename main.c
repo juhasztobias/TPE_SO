@@ -67,8 +67,10 @@ int main(int argc, char * argv[]) {
         i--;
     }
 
-    // main.c debe recibir los md5 de los slave.c y agregarlo al shm por orden de llegada
-    // esto para se hace para el proceso view
+    // main.c debe recibir los md5 de los slave.c, para imprimir por pantalla y agregarlo a la shm por orden de llegada
+
+
+    // creamos la shm 
 
     /*
     int shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);

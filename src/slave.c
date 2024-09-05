@@ -27,6 +27,9 @@ int main(int argc, char *argv[]){
             exit(EXIT_FAILURE);
         }
 
+    // estamos imprimiendo en pantalla/terminal directamente desde el slave
+    // tenemos que pasarle por los pipes al main el dato formateado para que el main imprima por pantalla e inserte en la shm 
+    
         char md5Buffer[BUFFER_SIZE];
         while(fgets(md5Buffer, sizeof(md5Buffer), fp) != NULL) {
             char md5[BUFFER_SIZE];
