@@ -3,7 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define MD5_COMMAND "/sbin/md5sum "         // PATH AL MD5SUM en MacOS
+#define MD5_COMMAND "/sbin/md5 "            // PATH AL MD5SUM en MacOS M3 (Nico)
+// #define MD5_COMMAND "/sbin/md5sum"         // PATH AL MD5SUM en MacOS M1
 // #define MD5_COMMAND "/usr/bin/md5sum "   // PATH AL MD5SUM en Docker Linux
 #define READ_FD 0
 #define WRITE_FD 1
@@ -35,14 +36,9 @@ int main(int argc, char *argv[]){
         char md5Buffer[BUFFER_SIZE];
         while(fgets(md5Buffer, sizeof(md5Buffer), fp) != NULL) {
             char md5[BUFFER_SIZE];
-
-            printf("Probando si entra al while.\n");
-
             sscanf(md5Buffer, "%s ", md5);
             fprintf(stdout, "File: %s - MD5: %s - PID: %d\n", file, md5, pid);
-        }
-        
-        printf("Hasta aca todo ok.\n");
+        }      
 
         // fprintf(stdout, "%d\n", pid);
         pclose(fp);
