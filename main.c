@@ -12,6 +12,8 @@
 #define WAIT_DEFAULT 0
 #define LOOP 1
 #define SLAVES 5
+#define SHM_NAME "/md5_shared_memory"
+#define SHM_SIZE 4096
 
 int main(int argc, char * argv[]) {
     pid_t pid;
@@ -32,7 +34,6 @@ int main(int argc, char * argv[]) {
         }
         if (pid == 0)
         {
-            // close(pipefd[1]);
             close(0);
             dup(pipefd[0]);
             close(pipefd[0]);
@@ -65,6 +66,33 @@ int main(int argc, char * argv[]) {
 
         i--;
     }
+
+    // main.c debe recibir los md5 de los slave.c y agregarlo al shm por orden de llegada
+    // esto para se hace para el proceso view
+
+    /*
+    int shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
+    if (shm_fd == -1) {
+        perror("shm_open");
+        exit(EXIT_FAILURE);
+    }
+
+    if (ftruncate(shm_fd, SHM_SIZE) == -1) {
+        perror("ftruncate");
+        exit(EXIT_FAILURE);
+    }
+
+    void *shm_ptr = mmap(0, SHM_SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0); // PROT_WRITE permite la escritura en la shm
+    if (shm_ptr == MAP_FAILED) {
+        perror("mmap");
+        exit(EXIT_FAILURE);
+    }
+
+    // elimino y cierro todo lo de la shm
+    munmap(shm_ptr, SHM_SIZE);
+    close(shm_fd);
+    shm_unlink(SHM_NAME);
+    */
 
     close(pipefd[READ_FD]);
     close(pipefd[WRITE_FD]);
