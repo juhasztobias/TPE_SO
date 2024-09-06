@@ -5,8 +5,8 @@
 #include <semaphore.h>
 #include <poll.h>
 
-// #define MD5_COMMAND "/sbin/md5 "            // PATH AL MD5SUM en MacOS M3 (Nico)
-#define MD5_COMMAND "/sbin/md5sum" // PATH AL MD5SUM en MacOS M1
+#define MD5_COMMAND "/sbin/md5 "            // PATH AL MD5SUM en MacOS M3 (Nico)
+// #define MD5_COMMAND "/sbin/md5sum" // PATH AL MD5SUM en MacOS M1
 // #define MD5_COMMAND "/usr/bin/md5sum "   // PATH AL MD5SUM en Docker Linux
 #define READ_FD 0
 #define WRITE_FD 1
@@ -15,8 +15,7 @@
 #define BUFFER_SIZE 1024
 #define COMMAND_SIZE 2048
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     char file[BUFFER_SIZE];
     pid_t pid = getpid();
     fsync(STDIN_FILENO);
@@ -44,7 +43,9 @@ int main(int argc, char *argv[])
             fprintf(stdout, "File: %s - MD5: %s - PID: %d\n", file, md5, pid);
         }
 
+        sleep(2);
         pclose(fp);
+        exit(0);
     }
 
     return 0;

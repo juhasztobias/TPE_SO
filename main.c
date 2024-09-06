@@ -16,11 +16,10 @@
 #define SHM_SIZE 4096
 #define TWO 2
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     pid_t pid[SLAVES];
-    int file_pipes[SLAVES][TWO]; // Pipes main -> slave
-    int hash_pipes[SLAVES][TWO]; // Pipes slave -> main
+    int file_pipes[SLAVES][TWO];   // Pipes main -> slave
+    int hash_pipes[SLAVES][TWO];   // Pipes slave -> main
 
     for (int i = 0; i < SLAVES; i++)
     {
@@ -36,8 +35,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    for (int i = 0; i < SLAVES; i++)
-    {
+    for (int i = 0; i < SLAVES; i++) {
         pid[i] = fork();
         if (pid[i] == -1)
         {
@@ -45,14 +43,14 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
         if (pid[i] == 0)
-        { // Child (slave)
+        { 
             // close(STDIN_FILENO);  // Close write-end of file pipe
 
             // Redirect pipes to stdin and stdout for the child
             dup2(file_pipes[i][READ_FD], STDIN_FILENO); // Redirect file pipe read-end to stdin
             // dup2(hash_pipes[i][WRITE_FD], STDOUT_FILENO); // Redirect hash pipe write-end to stdout
 
-            // Close the originals after dup
+            // Close the originals after dup (falta el de hash_pipes)
             close(file_pipes[i][READ_FD]);
 
             char *slave_o = "../src/bin/slave.o";
@@ -64,7 +62,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Armo las estrcturas
     struct pollfd pfd[SLAVES];
     for (int i = 0; i < SLAVES; i++)
     {
@@ -86,6 +83,8 @@ int main(int argc, char *argv[])
         if (ret == 0)
         {
             write(file_pipes[slave][WRITE_FD], argv[i], strlen(argv[i]) + 1);
+            sleep(1);
+            printf("%s \n", argv[i]);
             i++;
             continue;
         }
@@ -99,8 +98,18 @@ int main(int argc, char *argv[])
         close(hash_pipes[i][WRITE_FD]);
     }
 
-    // int status = 0;
-    while ((waitpid(-1, NULL, 0)) > 0)
-        printf("Esperando\n");
-    return 0;
+    // while ((waitpid(-1, NULL, 0)) > 0)
+    //     printf("Esperando\n");
+    // return 0;
+
+    int status, slave_pid;
+    for (int i = 0; i < SLAVES; i++) {
+        slave_pid = waitpid(pid[i], &status, 0);
+        if (slave_pid > 0) {
+            printf("Main espero al proceso slave con PID: %d\n", slave_pid);
+        } else {
+            perror("waitpid");
+            exit(EXIT_FAILURE);
+        }
+    }
 }
