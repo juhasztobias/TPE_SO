@@ -6,7 +6,7 @@
 #include <sys/fcntl.h>
 #include <poll.h>
 
-#define COMMANDS_BIN "/src/bin/"
+#define COMMANDS_BIN "/Users/tobiasjuhasz/Projects/ITBA/SO/TPE1/src/bin/"
 #define READ_FD 0
 #define WRITE_FD 1
 #define WAIT_DEFAULT 0
@@ -16,10 +16,11 @@
 #define SHM_SIZE 4096
 #define TWO 2
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     pid_t pid[SLAVES];
-    int file_pipes[SLAVES][TWO];   // Pipes main -> slave
-    int hash_pipes[SLAVES][TWO];   // Pipes slave -> main
+    int file_pipes[SLAVES][TWO]; // Pipes main -> slave
+    int hash_pipes[SLAVES][TWO]; // Pipes slave -> main
 
     for (int i = 0; i < SLAVES; i++)
     {
@@ -35,7 +36,10 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    for (int i = 0; i < SLAVES; i++) {
+    char slave_o[SHM_SIZE];
+    sprintf(slave_o, "%s%s", COMMANDS_BIN, "slave.o");
+    for (int i = 0; i < SLAVES; i++)
+    {
         pid[i] = fork();
         if (pid[i] == -1)
         {
@@ -43,7 +47,7 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
         if (pid[i] == 0)
-        { 
+        {
             // close(STDIN_FILENO);  // Close write-end of file pipe
 
             // Redirect pipes to stdin and stdout for the child
@@ -53,10 +57,8 @@ int main(int argc, char *argv[]) {
             // Close the originals after dup (falta el de hash_pipes)
             close(file_pipes[i][READ_FD]);
 
-            char *slave_o = "../src/bin/slave.o";
             char *slave_argv[] = {slave_o, NULL};
             execve(slave_o, slave_argv, NULL);
-
             perror("execve");
             exit(EXIT_FAILURE);
         }
@@ -80,36 +82,46 @@ int main(int argc, char *argv[]) {
             perror("poll");
             exit(EXIT_FAILURE);
         }
-        if (ret == 0)
-        {
-            write(file_pipes[slave][WRITE_FD], argv[i], strlen(argv[i]) + 1);
-            sleep(1);
-            printf("%s \n", argv[i]);
-            i++;
+        if (ret != 0)
             continue;
-        }
+
+        write(file_pipes[slave][WRITE_FD], argv[i], strlen(argv[i]) + 1);
+        i++;
     }
 
+    // Cerrar solo las tuberías de archivo
     for (int i = 0; i < SLAVES; i++)
     {
         close(file_pipes[i][READ_FD]);
-        close(hash_pipes[i][READ_FD]);
         close(file_pipes[i][WRITE_FD]);
-        close(hash_pipes[i][WRITE_FD]);
     }
 
-    // while ((waitpid(-1, NULL, 0)) > 0)
-    //     printf("Esperando\n");
-    // return 0;
+    // Después del bucle while que escribe los argumentos
+    for (int i = 0; i < SLAVES; i++)
+    {
+        close(file_pipes[i][WRITE_FD]);
+    }
 
+    // Esperar a que los procesos esclavos terminen
     int status, slave_pid;
-    for (int i = 0; i < SLAVES; i++) {
+    for (int i = 0; i < SLAVES; i++)
+    {
         slave_pid = waitpid(pid[i], &status, 0);
-        if (slave_pid > 0) {
+        if (slave_pid > 0)
+        {
             printf("Main espero al proceso slave con PID: %d\n", slave_pid);
-        } else {
+        }
+        else
+        {
             perror("waitpid");
             exit(EXIT_FAILURE);
         }
+    }
+
+    // Ahora cerrar las tuberías de hash
+    for (int i = 0; i < SLAVES; i++)
+    {
+        close(hash_pipes[i][READ_FD]);
+        close(hash_pipes[i][WRITE_FD]);
     }
 }
