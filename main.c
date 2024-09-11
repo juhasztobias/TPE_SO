@@ -5,22 +5,25 @@
 #include <stdlib.h>
 #include <sys/fcntl.h>
 #include <poll.h>
+#include <sys/mman.h> 
 
-#define COMMANDS_BIN "/Users/tobiasjuhasz/Projects/ITBA/SO/TPE1/src/bin/"
+// #define COMMANDS_BIN "/Users/tobiasjuhasz/Projects/ITBA/SO/TPE1/src/bin/"
+#define COMMANDS_BIN "/Users/nicolaskim/Documents/SO/TP1/TPE_SO/src/bin/"
 #define READ_FD 0
 #define WRITE_FD 1
 #define WAIT_DEFAULT 0
 #define LOOP 1
 #define SLAVES 5
 #define SHM_NAME "/md5_shared_memory"
-#define SHM_SIZE 4096
+#define SHM_SIZE 9096
 #define TWO 2
+#define BUFFER_SIZE 1600
 
 int main(int argc, char *argv[])
 {
     pid_t pid[SLAVES];
-    int file_pipes[SLAVES][TWO]; // Pipes main -> slave
-    int hash_pipes[SLAVES][TWO]; // Pipes slave -> main
+    int file_pipes[SLAVES][TWO];  // Pipes main -> slave
+    int hash_pipes[SLAVES][TWO];  // Pipes slave -> main
 
     for (int i = 0; i < SLAVES; i++)
     {
@@ -48,14 +51,15 @@ int main(int argc, char *argv[])
         }
         if (pid[i] == 0)
         {
-            // close(STDIN_FILENO);  // Close write-end of file pipe
+            close(STDIN_FILENO);  // Close write-end of file pipe
 
             // Redirect pipes to stdin and stdout for the child
             dup2(file_pipes[i][READ_FD], STDIN_FILENO); // Redirect file pipe read-end to stdin
-            // dup2(hash_pipes[i][WRITE_FD], STDOUT_FILENO); // Redirect hash pipe write-end to stdout
+            //dup2(hash_pipes[i][WRITE_FD], STDOUT_FILENO); // Redirect hash pipe write-end to stdout
 
-            // Close the originals after dup (falta el de hash_pipes)
+            // Close the originals after dup 
             close(file_pipes[i][READ_FD]);
+            //close(hash_pipes[i][WRITE_FD]);
 
             char *slave_argv[] = {slave_o, NULL};
             execve(slave_o, slave_argv, NULL);
@@ -106,7 +110,7 @@ int main(int argc, char *argv[])
     int status, slave_pid;
     for (int i = 0; i < SLAVES; i++)
     {
-        slave_pid = waitpid(pid[i], &status, 0);
+        slave_pid = waitpid(-1 , &status, WAIT_DEFAULT); //pid[i] por si queremos en orden
         if (slave_pid > 0)
         {
             printf("Main espero al proceso slave con PID: %d\n", slave_pid);
@@ -118,10 +122,49 @@ int main(int argc, char *argv[])
         }
     }
 
+     /* [[[[  [[[[   creamos la shm   ]]]]  ]]]]*/
+    
+    // int shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
+    // if (shm_fd == -1) {
+    //     perror("shm_open");
+    //     exit(EXIT_FAILURE);
+    // }
+
+    // if (ftruncate(shm_fd, SHM_SIZE) == -1) {
+    //     perror("ftruncate");
+    //     exit(EXIT_FAILURE);
+    // }
+    // void *shm_ptr = mmap(0, SHM_SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0); // PROT_WRITE permite la escritura en la shm
+    // if (shm_ptr == MAP_FAILED) {
+    //     perror("mmap");
+    //     exit(EXIT_FAILURE);
+    // }
+
+    // // Leer lo que los procesos slaves escriben en el hash pipe y escribirlo en la memoria compartida
+    // char buffer[BUFFER_SIZE];
+    // char *shm_write_ptr = (char *)shm_ptr;  // Puntero a la memoria compartida
+    // for (int i = 0; i < SLAVES; i++)
+    // {
+    //     ssize_t bytes_read = read(hash_pipes[i][READ_FD], buffer, sizeof(buffer));
+    //     if (bytes_read > 0)
+    //     {
+    //         // Escribir en la memoria compartida
+    //         snprintf(shm_write_ptr, SHM_SIZE, "%s", buffer);
+    //         shm_write_ptr += bytes_read;  // Mover el puntero
+    //     }
+    // }
+
+    // // elimino y cierro todo lo de la shm
+    // munmap(shm_ptr, SHM_SIZE);
+    // close(shm_fd);
+    // shm_unlink(SHM_NAME);
+    
+
     // Ahora cerrar las tuberías de hash
     for (int i = 0; i < SLAVES; i++)
     {
         close(hash_pipes[i][READ_FD]);
         close(hash_pipes[i][WRITE_FD]);
     }
+    return 0;
 }
