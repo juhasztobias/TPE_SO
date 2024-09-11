@@ -42,13 +42,12 @@ int main(int argc, char *argv[])
         buffer_read = read(STDIN_FILENO, file, BUFFER_SIZE * sizeof(char));
         if (buffer_read <= 0)
             break;
-        
+
         file[strcspn(file, "\n")] = 0; // Elimina el salto de línea del nombre del archivo si es que existe
 
         char md5sum_command[COMMAND_SIZE];
-        //sprintf(md5sum_command, "%s \'%s\'", MD5_COMMAND, file);
+        // sprintf(md5sum_command, "%s \'%s\'", MD5_COMMAND, file);
         sprintf(md5sum_command, "%s %s", MD5_COMMAND, file);
-
 
         FILE *fp = popen(md5sum_command, "r");
         if (fp == NULL)
@@ -58,7 +57,13 @@ int main(int argc, char *argv[])
         }
 
         char md5Buffer[BUFFER_SIZE];
-        // char fullLine[BUFFER_SIZE * 2]; 
+
+        // poll para la escritura en hash_pipes
+        // struct pollfd pfd2;
+        // pfd2.fd = STDOUT_FILENO;
+        // pfd2.events = POLLIN;
+        // char fullLine[BUFFER_SIZE * 2];
+
 
         while (fgets(md5Buffer, sizeof(md5Buffer), fp) != NULL)
         {
@@ -66,9 +71,18 @@ int main(int argc, char *argv[])
             sscanf(md5Buffer, "%s ", md5);
             fprintf(stdout, "File: %s - MD5: %s - PID: %d\n", file, md5, pid);
 
-            // // fullLine contiene el string completo 
+            // fullLine contiene el string completo
             // snprintf(fullLine, sizeof(fullLine), "File: %s - MD5: %s - PID: %d\n", file, md5, pid);
-            
+
+            // int ret = poll(&(pfd2), 1, 1);
+            // if (ret == -1)
+            // {
+            //     perror("poll");
+            //     exit(EXIT_FAILURE);
+            // }
+            // if (ret != 0)
+            // continue;
+
             // size_t bytes = write(STDOUT_FILENO, fullLine, strlen(file));
             // if (bytes == -1) {
             // perror("write");

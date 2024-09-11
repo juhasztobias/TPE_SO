@@ -15,7 +15,7 @@
 #define LOOP 1
 #define SLAVES 5
 #define SHM_NAME "/md5_shared_memory"
-#define SHM_SIZE 9096
+#define SHM_SIZE 13096
 #define TWO 2
 #define BUFFER_SIZE 1600
 
@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
         }
     }
 
-     /* [[[[  [[[[   creamos la shm   ]]]]  ]]]]*/
+     /* [[[[  [[[[   creamos la SHM   ]]]]  ]]]] */
     
     // int shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
     // if (shm_fd == -1) {
@@ -134,18 +134,32 @@ int main(int argc, char *argv[])
     //     perror("ftruncate");
     //     exit(EXIT_FAILURE);
     // }
-    // void *shm_ptr = mmap(0, SHM_SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0); // PROT_WRITE permite la escritura en la shm
+
+    // void *shm_ptr = mmap(0, SHM_SIZE, PROT_WRITE | PROT_READ, MAP_SHARED, shm_fd, 0); 
     // if (shm_ptr == MAP_FAILED) {
     //     perror("mmap");
     //     exit(EXIT_FAILURE);
     // }
+
+    // struct pollfd pfd2;
+    // pfd2.fd = STDIN_FILENO;
+    // pfd2.events = POLLIN;
 
     // // Leer lo que los procesos slaves escriben en el hash pipe y escribirlo en la memoria compartida
     // char buffer[BUFFER_SIZE];
     // char *shm_write_ptr = (char *)shm_ptr;  // Puntero a la memoria compartida
     // for (int i = 0; i < SLAVES; i++)
     // {
-    //     ssize_t bytes_read = read(hash_pipes[i][READ_FD], buffer, sizeof(buffer));
+    //     int ret = poll(&pfd2, 1, 1000); // Espera hasta 1 segundo por datos
+    //     if (ret == 0)
+    //         break; // Salir del bucle si no hay datos después de 1 segundo
+    //     else if (ret == -1)
+    //     {
+    //         perror("poll");
+    //         exit(EXIT_FAILURE);
+    //     }
+        
+    //     ssize_t bytes_read = read(hash_pipes[i][READ_FD], buffer, BUFFER_SIZE * sizeof(char));
     //     if (bytes_read > 0)
     //     {
     //         // Escribir en la memoria compartida
@@ -153,6 +167,13 @@ int main(int argc, char *argv[])
     //         shm_write_ptr += bytes_read;  // Mover el puntero
     //     }
     // }
+
+
+    // // Imprimir el contenido de la memoria compartida en pantalla para checkear
+    // char *shm_read_ptr = (char *)shm_ptr;  // Puntero a la memoria compartida
+    // printf("Contenido de la memoria compartida:\n");
+    // printf("%s\n", shm_read_ptr);
+
 
     // // elimino y cierro todo lo de la shm
     // munmap(shm_ptr, SHM_SIZE);
