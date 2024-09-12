@@ -13,7 +13,6 @@
 #define WRITE_FD 1
 #define WAIT_DEFAULT 0
 #define LOOP 1
-#define SLAVES 5
 #define SHM_NAME "/md5_shared_memory"
 #define SHM_SIZE 13096
 #define TWO 2
@@ -21,11 +20,12 @@
 
 int main(int argc, char *argv[])
 {
-    pid_t pid[SLAVES];
-    int file_pipes[SLAVES][TWO];  // Pipes main -> slave
-    int hash_pipes[SLAVES][TWO];  // Pipes slave -> main
+    int slaves = argc/10 +1;
+    pid_t pid[slaves];
+    int file_pipes[slaves][TWO];  // Pipes main -> slave
+    int hash_pipes[slaves][TWO];  // Pipes slave -> main
 
-    for (int i = 0; i < SLAVES; i++)
+    for (int i = 0; i < slaves; i++)
     {
         if (pipe(file_pipes[i]) == -1)
         {
@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 
     char slave_o[SHM_SIZE];
     sprintf(slave_o, "%s%s", COMMANDS_BIN, "slave.o");
-    for (int i = 0; i < SLAVES; i++)
+    for (int i = 0; i < slaves; i++)
     {
         pid[i] = fork();
         if (pid[i] == -1)
@@ -68,8 +68,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    struct pollfd pfd[SLAVES];
-    for (int i = 0; i < SLAVES; i++)
+    struct pollfd pfd[slaves];
+    for (int i = 0; i < slaves; i++)
     {
         pfd[i].fd = file_pipes[i][READ_FD];
         pfd[i].events = POLLIN;
@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
     while (i < argc)
     {
         slave++;
-        slave = slave % SLAVES;
+        slave = slave % slaves;
         int ret = poll(&(pfd[slave]), 1, 1);
         if (ret == -1)
         {
@@ -94,21 +94,21 @@ int main(int argc, char *argv[])
     }
 
     // Cerrar solo las tuberías de archivo
-    for (int i = 0; i < SLAVES; i++)
+    for (int i = 0; i < slaves; i++)
     {
         close(file_pipes[i][READ_FD]);
         close(file_pipes[i][WRITE_FD]);
     }
 
     // Después del bucle while que escribe los argumentos
-    for (int i = 0; i < SLAVES; i++)
+    for (int i = 0; i < slaves; i++)
     {
         close(file_pipes[i][WRITE_FD]);
     }
 
     // Esperar a que los procesos esclavos terminen
     int status, slave_pid;
-    for (int i = 0; i < SLAVES; i++)
+    for (int i = 0; i < slaves; i++)
     {
         slave_pid = waitpid(-1 , &status, WAIT_DEFAULT); //pid[i] por si queremos en orden
         if (slave_pid > 0)
@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
     // // Leer lo que los procesos slaves escriben en el hash pipe y escribirlo en la memoria compartida
     // char buffer[BUFFER_SIZE];
     // char *shm_write_ptr = (char *)shm_ptr;  // Puntero a la memoria compartida
-    // for (int i = 0; i < SLAVES; i++)
+    // for (int i = 0; i < slaves; i++)
     // {
     //     int ret = poll(&pfd2, 1, 1000); // Espera hasta 1 segundo por datos
     //     if (ret == 0)
@@ -182,10 +182,39 @@ int main(int argc, char *argv[])
     
 
     // Ahora cerrar las tuberías de hash
-    for (int i = 0; i < SLAVES; i++)
+    for (int i = 0; i < slaves; i++)
     {
         close(hash_pipes[i][READ_FD]);
         close(hash_pipes[i][WRITE_FD]);
     }
     return 0;
 }
+
+
+/*
+    while (i < argc)
+    {
+        slave++;
+        slave = slave % slaves;
+        int ret = poll(&(pfd[slave]), 1, 1);
+        if (ret == -1)
+        {
+            perror("poll");
+            exit(EXIT_FAILURE);
+        }
+        if (ret != 0)
+            continue;
+
+        write(file_pipes[slave][WRITE_FD], argv[i], strlen(argv[i]) + 1);
+
+        char buffer[BUFFER_SIZE];
+        ssize_t bytesRead;
+        bytesRead = read(hash_pipes[slave][READ_FD],buffer,sizeof(buffer)-1);
+        if (bytesRead > 0) {
+            buffer[bytesRead] = '\0';  // Null-terminate the string
+            printf("%s", buffer);  // Print in main
+        }
+        i++;
+        
+    }
+*/
