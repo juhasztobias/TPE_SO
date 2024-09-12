@@ -97,3 +97,20 @@ int main(int argc, char *argv[])
     fflush(stdout);
     return 0;
 }
+
+
+/* Esto seria sin shm
+        char md5Buffer[BUFFER_SIZE];
+        char md5[BUFFER_SIZE];
+
+        while (fgets(md5Buffer, sizeof(md5Buffer), fp) != NULL)
+        {
+            sscanf(md5Buffer, "%s ", md5);
+            //fprintf(stdout, "File: %s - MD5: %s - PID: %d\n", file, md5, pid);
+
+            char result[BUFFER_SIZE];
+            snprintf(result,BUFFER_SIZE, " File: %s, MD5: %s, PID: %d\n" , file, md5,pid);
+            write(STDOUT_FILENO, result, strlen(result)); //Escribo al pipe de los archivos
+        }
+
+*/
