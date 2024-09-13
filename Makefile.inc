@@ -1,3 +1,3 @@
 GCC=gcc
 
-GCCFLAGS=-lpthread -Wall
+GCCFLAGS=-pthread -Wall

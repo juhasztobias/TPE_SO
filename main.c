@@ -37,9 +37,15 @@ int main(int argc, char *argv[])
         runSlave(SLAVE_BIN, file_pipes[i], hash_pipes[i]);
 
     // Esperar dos segundos a que un proceso vista esté listo para leer de la memoria compartida
-    sleep(2);
     int shm_fd = createSharedMemory();
     struct shmbuf *shm_ptr = mapSharedMemory(shm_fd);
+
+    if (sem_init(&(shm_ptr->sem_1), 1, 1) == -1)
+        throwError("sem_init-1");
+    if (sem_init(&(shm_ptr->sem_2), 1, 1) == -1)
+        throwError("sem_init-2");
+
+    sleep(2);
 
     // Esperar dos segundos a que un proceso vista esté listo para leer de la memoria compartida
     // El proceso vista le indica READY al main
@@ -51,25 +57,27 @@ int main(int argc, char *argv[])
         slave++;
         slave = slave % slaves;
 
-        if (writeSlavePipe(file_pipes[slave], argv[i]) == 0)
+        if (writeSlavePipe(file_pipes[slave], argv[i]) != 0)
         {
-            char buffer[BUFFER_SIZE];
-            int readBytes = readSlavePipe(hash_pipes[slave], buffer);
-            if (readBytes != 0)
-            {
-                // Espero a que el proceso vista esté listo para leer
-                if (sem_wait(&shm_ptr->sem_2) == -1)
-                    throwError("sem_wait-2");
-                shm_ptr->buffer_size = readBytes;
-                snprintf(shm_ptr->buffer, readBytes + 1, "%s", buffer);
-
-                // Indicar que ya se escribió en la memoria compartida
-                if (sem_post(&shm_ptr->sem_1) == -1)
-                    throwError("sem_post-1");
-            }
+            i++;
             continue;
         }
-        i++;
+
+        char buffer[BUFFER_SIZE];
+        int readBytes = readSlavePipe(hash_pipes[slave], buffer);
+        if (readBytes != 0)
+        {
+            writeToSharedMemory(shm_ptr, buffer, readBytes);
+            // Espero a que el proceso vista esté listo para leer
+            // if (sem_wait(&(shm_ptr->sem_2)) == -1)
+            //     throwError("sem_wait-2");
+            // shm_ptr->buffer_size = readBytes;
+            // memcpy(shm_ptr->buffer, buffer, readBytes);
+
+            // // Indicar que ya se escribió en la memoria compartida
+            // if (sem_post(&(shm_ptr->sem_1)) == -1)
+            //     throwError("sem_post-1");
+        }
     }
 
     // Esperar a que los procesos esclavos terminen
@@ -87,10 +95,12 @@ int main(int argc, char *argv[])
     // Le indico que terminé de escribir
     shm_ptr->buffer_size = 0;
     shm_ptr->buffer[0] = '\0';
+
     if (sem_post(&shm_ptr->sem_1) == -1)
         throwError("sem_post-1");
-    sem_close(&shm_ptr->sem_1);
-    sem_close(&shm_ptr->sem_2);
+
+    sem_destroy(&shm_ptr->sem_1);
+    sem_destroy(&shm_ptr->sem_2);
     // Unmap and close shared memory
     unMapSharedMemory(shm_ptr, shm_fd);
 
@@ -229,12 +239,22 @@ int createSharedMemory()
 {
     // Si ya existe la memoria compartida, la eliminamos
     // shm_unlink(SHM_NAME);
-    int shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
+    int shm_fd = shm_open(SHM_NAME, O_CREAT | O_EXCL | O_RDWR, 0666);
     if (shm_fd == -1)
         throwError("shm_open");
     if (ftruncate(shm_fd, sizeof(struct shmbuf)) == -1)
         throwError("ftruncate");
     return shm_fd;
+}
+
+void writeToSharedMemory(struct shmbuf *shm_ptr, char *buffer, size_t buffer_size)
+{
+    if (sem_wait(&(shm_ptr->sem_2)) == -1)
+        throwError("sem_wait-2");
+    shm_ptr->buffer_size = buffer_size;
+    memcpy(shm_ptr->buffer, buffer, buffer_size);
+    if (sem_post(&(shm_ptr->sem_1)) == -1)
+        throwError("sem_post-1");
 }
 
 /**
