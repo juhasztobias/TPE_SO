@@ -1,4 +1,5 @@
 #include "shm_struct.h"
+#include <errno.h>
 
 #define READ_FD 0
 #define WRITE_FD 1
@@ -18,7 +19,7 @@ int main(int argc, char *argv[])
     int shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
     if (shm_fd == -1)
         throwError("shm_open");
-    shm_ptr = mmap(NULL, sizeof(*shm_ptr), PROT_WRITE | PROT_READ, MAP_SHARED, shm_fd, 0);
+    shm_ptr = mmap(NULL, sizeof(struct shmbuf), PROT_WRITE | PROT_READ, MAP_SHARED, shm_fd, 0);
     if (shm_ptr == MAP_FAILED)
         throwError("mmap");
 
@@ -26,15 +27,17 @@ int main(int argc, char *argv[])
         throwError("sem_post-2");
     do
     {
+        while (sem_wait(&shm_ptr->sem_1) == -1){
+            if (errno != EINTR)
+                throwError("sem_wait-1");
+        }
+        printf("%s", shm_ptr->buffer);
         if (sem_post(&shm_ptr->sem_2) == -1)
             throwError("sem_post-2");
-        while (sem_wait(&shm_ptr->sem_1) == -1);
-            // throwError("sem_wait-1");
-        printf("%s", shm_ptr->buffer);
     } while (shm_ptr->buffer_size != 0);
 
     // Unmap and close shared memory
-    munmap(shm_ptr, SHM_SIZE);
+    munmap(shm_ptr, sizeof(struct shmbuf));
     close(shm_fd);
 }
 

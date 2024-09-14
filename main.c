@@ -44,9 +44,7 @@ int main(int argc, char *argv[])
     // en file_pipes y hash_pipes los pipes de comunicación
     for (int i = 0; i < slaves; i++)
         runSlave(SLAVE_BIN, file_pipes[i], hash_pipes[i]);
-    printf("aca");
 
-    // Esperar dos segundos a que un proceso vista esté listo para leer de la memoria compartida
     int shm_fd = createSharedMemory();
     struct shmbuf *shm_ptr = mapSharedMemory(shm_fd);
 
@@ -57,32 +55,22 @@ int main(int argc, char *argv[])
 
     int view_ready = waitView(shm_ptr, 2);
 
-    // Esperar dos segundos a que un proceso vista esté listo para leer de la memoria compartida
-    // El proceso vista le indica READY al main
-    // Esto se hace con un semaforo
-
     int slave = 0, i = 1;
     while (i < argc)
     {
         slave++;
         slave = slave % slaves;
-        printf("Slave: %d, FILE: %s\n", slave, argv[i]);
-        if (writeSlavePipe(file_pipes[slave], argv[i]) != 0)
-        {
-            i++;
-        }
+
+        i += writeSlavePipe(file_pipes[slave], argv[i]);
 
         char buffer[BUFFER_SIZE];
         int readBytes = readSlavePipe(hash_pipes[slave], buffer);
-        if (readBytes != 0)
-        {
-            fwrite(buffer, sizeof(char), readBytes, result);
-            if(view_ready){
-                writeToSharedMemory(shm_ptr, buffer, readBytes);
-            }
-            // Espero a que el proceso vista esté listo para leer
-            // Escribo en un archivo resultado.txt
-        }
+        if (readBytes == 0) continue;
+
+        // Escribo en un archivo resultado.txt
+        fwrite(buffer, sizeof(char), readBytes, result);
+        if(view_ready)
+            writeToSharedMemory(shm_ptr, buffer, readBytes);
     }
 
     // Esperar a que los procesos esclavos terminen
@@ -271,13 +259,16 @@ int createSharedMemory()
 void writeToSharedMemory(struct shmbuf *shm_ptr, char *buffer, size_t buffer_size)
 {   
 
-    while (sem_wait(&shm_ptr->sem_2) == -1);
+    while (sem_wait(&shm_ptr->sem_2) == -1){
+        if (errno != EINTR)
+                throwError("sem_wait-1");
+    }
+    if (sem_post(&shm_ptr->sem_1) == -1)
+        throwError("sem_post-1");
         // throwError("sem_wait-2");
     shm_ptr->buffer_size = buffer_size;
     memcpy(shm_ptr->buffer, buffer, buffer_size);
 
-    if (sem_post(&shm_ptr->sem_1) == -1)
-        throwError("sem_post-1");
 }
 
 /**
