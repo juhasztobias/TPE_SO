@@ -192,8 +192,11 @@ pid_t runSlave(char *slaveCommand, int file_pipes[TWO], int hash_pipes[TWO])
         close(hash_pipes[WRITE_FD]);
 
         // close all other file descriptors
-        // deberiamos armar una funcion que tome cada FD para cerrarlos y no tener que hacerlo uno por uno
-        //fcntl(..., F_SETFD, FD_CLOEXEC);
+        closeMainPipes(file_pipes, WRITE_FD);
+        closeMainPipes(file_pipes, READ_FD);
+        closeMainPipes(hash_pipes, WRITE_FD);
+        closeMainPipes(hash_pipes, READ_FD);
+        
 
         char *slave_argv[] = {slaveCommand, NULL};
         execve(slaveCommand, slave_argv, NULL);
@@ -201,6 +204,16 @@ pid_t runSlave(char *slaveCommand, int file_pipes[TWO], int hash_pipes[TWO])
         exit(EXIT_FAILURE);
     }
     return pid;
+}
+
+// Cierro los pipes que quedan abiertos en el main
+void closeMainPipes(int *file_pipe, int type)
+{
+    int value = fcntl(file_pipe[type], F_SETFD, FD_CLOEXEC);
+    if (value == -1) {
+        perror("fcntl");
+        exit(EXIT_FAILURE);
+    }
 }
 
 /**
