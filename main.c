@@ -1,5 +1,5 @@
 #include <poll.h>
-#include <time.h> 
+#include <time.h>
 #include <errno.h>
 #include "shm_struct.h"
 
@@ -34,6 +34,7 @@ int waitView(struct shmbuf *shm_ptr, int timeout_s);
 int main(int argc, char *argv[])
 {
     int slaves = argc / 10 + 1;
+    // int slaves = 10;
     int file_pipes[slaves][TWO]; // Pipes main -> slave
     int hash_pipes[slaves][TWO]; // Pipes slave -> main
 
@@ -65,11 +66,12 @@ int main(int argc, char *argv[])
 
         char buffer[BUFFER_SIZE];
         int readBytes = readSlavePipe(hash_pipes[slave], buffer);
-        if (readBytes == 0) continue;
+        if (readBytes == 0)
+            continue;
 
         // Escribo en un archivo resultado.txt
         fwrite(buffer, sizeof(char), readBytes, result);
-        if(view_ready)
+        if (view_ready)
             writeToSharedMemory(shm_ptr, buffer, readBytes);
     }
 
@@ -82,14 +84,14 @@ int main(int argc, char *argv[])
     if (slave_pid == -1 && slaves_left != 0)
         throwError("waitpid");
 
-    if(view_ready)
+    if (view_ready)
         writeToSharedMemory(shm_ptr, "\0", 0);
 
     sem_destroy(&shm_ptr->sem_1);
     sem_destroy(&shm_ptr->sem_2);
     // // Unmap and close shared memory
     unMapSharedMemory(shm_ptr, shm_fd);
-    
+
     // Cerramos el archivo resultado.txt
     fclose(result);
 
@@ -139,7 +141,7 @@ int writeSlavePipe(int *pipe, char *str)
  */
 int readSlavePipe(int *pipe, char *buffer)
 {
-    int ret = checkAvailability(pipe[READ_FD], POLLIN, 100);
+    int ret = checkAvailability(pipe[READ_FD], POLLIN, 1);
     if (ret == 0)
         return 0;
     ssize_t bytes_read = read(pipe[READ_FD], buffer, BUFFER_SIZE * sizeof(char));
@@ -183,7 +185,6 @@ pid_t runSlave(char *slaveCommand, int file_pipes[TWO], int hash_pipes[TWO])
         // close all other file descriptors
         closeMainPipes(file_pipes, WRITE_FD);
         closeMainPipes(hash_pipes, READ_FD);
-        
 
         char *slave_argv[] = {slaveCommand, NULL};
         execve(slaveCommand, slave_argv, NULL);
@@ -198,7 +199,8 @@ void closeMainPipes(int *file_pipe, int type)
 {
     // FIX: Arroja Bad file descriptor
     int value = fcntl(file_pipe[type], F_SETFD, FD_CLOEXEC);
-    if (value == -1) {
+    if (value == -1)
+    {
         perror("fcntl");
         exit(EXIT_FAILURE);
     }
@@ -253,20 +255,19 @@ int createSharedMemory()
     return shm_fd;
 }
 
-
 void writeToSharedMemory(struct shmbuf *shm_ptr, char *buffer, size_t buffer_size)
-{   
+{
 
-    while (sem_wait(&shm_ptr->sem_2) == -1){
+    while (sem_wait(&shm_ptr->sem_2) == -1)
+    {
         if (errno != EINTR)
-                throwError("sem_wait-1");
+            throwError("sem_wait-1");
     }
     if (sem_post(&shm_ptr->sem_1) == -1)
         throwError("sem_post-1");
-        // throwError("sem_wait-2");
+    // throwError("sem_wait-2");
     shm_ptr->buffer_size = buffer_size;
     memcpy(shm_ptr->buffer, buffer, buffer_size);
-
 }
 
 /**
@@ -297,22 +298,13 @@ int waitView(struct shmbuf *shm_ptr, int timeout_s)
     if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
         throwError("clock_gettime");
     ts.tv_sec += timeout_s;
-    // sleep(2);
+
     // int ret;
     // while((ret = sem_timedwait(&shm_ptr->sem_2, &ts)) == -1 && errno == EINTR);
     // if (ret == -1 && errno == ETIMEDOUT)
     //     return 0;
     // if (ret == -1)
     //     throwError("sem_timedwait");
-    
-    // if (sem_timedwait(&shm_ptr->sem_2, &ts) == -1)
-    // {
-    //     if (errno == ETIMEDOUT)
-    //         return 0;
-
-    //     if (errno != EINTR)
-    //         throwError("sem_timedwait");
-    // }
 
     // Esto es pasar por pipe a view
     return 1;
