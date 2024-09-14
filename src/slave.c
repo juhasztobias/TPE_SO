@@ -47,8 +47,8 @@ int main(int argc, char *argv[])
         // Elimina el salto de línea del nombre del archivo si es que existe
         file[strcspn(file, "\n")] = 0;
         char buffer[BUFFER_SIZE * 2];
-        if (strcmp(file, "main.o") == 0)
-            continue;
+        // if (strcmp(file, "main.o") == 0)
+        //     continue;
         writePipe(getMD5(buffer, file, pid));
     }
 

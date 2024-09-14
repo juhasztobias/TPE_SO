@@ -182,8 +182,6 @@ pid_t runSlave(char *slaveCommand, int file_pipes[TWO], int hash_pipes[TWO])
 
         // close all other file descriptors
         closeMainPipes(file_pipes, WRITE_FD);
-        // closeMainPipes(file_pipes, READ_FD);
-        // closeMainPipes(hash_pipes, WRITE_FD);
         closeMainPipes(hash_pipes, READ_FD);
         
 
@@ -199,11 +197,11 @@ pid_t runSlave(char *slaveCommand, int file_pipes[TWO], int hash_pipes[TWO])
 void closeMainPipes(int *file_pipe, int type)
 {
     // FIX: Arroja Bad file descriptor
-    // int value = fcntl(file_pipe[type], F_SETFD, FD_CLOEXEC);
-    // if (value == -1) {
-    //     perror("fcntl");
-    //     exit(EXIT_FAILURE);
-    // }
+    int value = fcntl(file_pipe[type], F_SETFD, FD_CLOEXEC);
+    if (value == -1) {
+        perror("fcntl");
+        exit(EXIT_FAILURE);
+    }
 }
 
 /**
