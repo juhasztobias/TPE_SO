@@ -12,8 +12,8 @@ baseBIN=$(mainC:.c=.o)
 viewBIN=$(viewC:.c=.o)
 
 all: slave
-	@$(GCC) $(GCCFLAGS) -o $(baseBIN) $(mainC)
-	@$(GCC) $(GCCFLAGS) -o $(viewBIN) $(viewC)
+	@$(GCC) $(GCCFLAGS) -o $(baseBIN) $(mainC) $(LDFLAGS)
+	@$(GCC) $(GCCFLAGS) -o $(viewBIN) $(viewC) $(LDFLAGS)
 
 slave: 
 	@cd $(SRC); make all; cd ..
@@ -21,7 +21,8 @@ try: all
 	@echo "Running test..."
 	@echo "===================="
 	@echo " "
-	@cd $(TEST); ../$(baseBIN) * | ../$(viewBIN)
+	@cd $(TEST); ../$(baseBIN) * 
+#| ../$(viewBIN)
 	@echo " "
 	@echo "===================="
 	@echo "Done."

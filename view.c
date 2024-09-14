@@ -6,6 +6,7 @@
 #define LOOP 1
 #define SHM_SIZE 4096
 #define SHM_PTR_SIZE 8
+#define SHM_NAME "/shm_md5"
 
 void throwError(char *msg);
 

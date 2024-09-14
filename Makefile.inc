@@ -1,3 +1,4 @@
 GCC=gcc
 
-GCCFLAGS=-pthread -Wall
+GCCFLAGS=-Wall -fsanitize=address -pthread -std=gnu99 -D_GNU_SOURCE -g
+LDFLAGS=-lpthread -lrt
