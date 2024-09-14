@@ -15,7 +15,7 @@
 
 pid_t runSlave(char *slaveCommand, int file_pipes[TWO], int hash_pipes[TWO]);
 
-int slavePipes(int *filePipe, int *hashPipe);
+int slavePipes(int* file_pipe, int* hash_pipe);
 void closeSlavePipes(int *file_pipe, int *hash_pipe);
 int writeSlavePipe(int *pipe, char *str);
 int readSlavePipe(int *pipe, char *buffer);
@@ -96,8 +96,8 @@ int main(int argc, char *argv[])
     fclose(result);
 
     // Cerramos los pipes de los procesos esclavos antes de terminar
-    for (int i = 0; i < slaves; i++)
-        closeSlavePipes(file_pipes[i], hash_pipes[i]);
+    for (int j = 0; j < slaves; j++)
+        closeSlavePipes(file_pipes[j], hash_pipes[j]);
 
     return 0;
 }
@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
 /**
  * Crea los pipes para la comunicación entre el main y los slaves
  */
-int slavePipes(int *file_pipe, int *hash_pipe)
+int slavePipes(int* file_pipe, int* hash_pipe)
 {
     return pipe(file_pipe) == -1 || pipe(hash_pipe) == -1 ? -1 : 0;
 }

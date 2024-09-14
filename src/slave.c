@@ -27,7 +27,6 @@ int main(int argc, char *argv[])
 
     fsync(STDIN_FILENO);
     fsync(STDOUT_FILENO);
-    ssize_t buffer_read;
 
     while (1)
     {
@@ -40,6 +39,7 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
 
+        ssize_t buffer_read;
         buffer_read = read(STDIN_FILENO, file, BUFFER_SIZE * sizeof(char));
         if (buffer_read <= 0)
             break;
@@ -71,7 +71,7 @@ char *getMD5(char *buff, char *fileName, pid_t pid)
     while (fgets(md5Buffer, sizeof(md5Buffer), fp) != NULL)
     {
         char md5[BUFFER_SIZE];
-        sscanf(md5Buffer, "%s ", md5);
+        sscanf(md5Buffer, "%1599s", md5);
         sprintf(buff, "File: %s - MD5: %s - PID: %d\n", fileName, md5, pid);
     }
     pclose(fp);
@@ -105,10 +105,5 @@ void writePipe(char *str)
         }
     }
 
-    size_t bytes = write(STDOUT_FILENO, str, strlen(str) + 1);
-    if (bytes == -1)
-    {
-        perror("write");
-        exit(EXIT_FAILURE);
-    }
+    write(STDOUT_FILENO, str, strlen(str) + 1);
 }
