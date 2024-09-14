@@ -41,6 +41,10 @@ int main(int argc, char *argv[])
     // Creamos el archivo resultado.txt
     FILE *result = fopen("resultado.txt", "w+");
 
+    if (result == NULL) {
+    perror("Error opening file");
+    return EXIT_FAILURE;
+}
     // Crear los procesos esclavos, guardamos los PIDs en un Array,
     // en file_pipes y hash_pipes los pipes de comunicación
     for (int i = 0; i < slaves; i++)
