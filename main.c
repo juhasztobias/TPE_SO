@@ -47,15 +47,15 @@ int main(int argc, char *argv[])
     printf("aca");
 
     // Esperar dos segundos a que un proceso vista esté listo para leer de la memoria compartida
-    // int shm_fd = createSharedMemory();
-    // struct shmbuf *shm_ptr = mapSharedMemory(shm_fd);
+    int shm_fd = createSharedMemory();
+    struct shmbuf *shm_ptr = mapSharedMemory(shm_fd);
 
-    // if (sem_init(&(shm_ptr->sem_1), 1, 0) == -1)
-    //     throwError("sem_init-1");
-    // if (sem_init(&(shm_ptr->sem_2), 1, 0) == -1)
-    //     throwError("sem_init-2");
+    if (sem_init(&shm_ptr->sem_1, 1, 0) == -1)
+        throwError("sem_init-1");
+    if (sem_init(&shm_ptr->sem_2, 1, 0) == -1)
+        throwError("sem_init-2");
 
-    // int view_ready = waitView(shm_ptr, 2);
+    int view_ready = waitView(shm_ptr, 2);
 
     // Esperar dos segundos a que un proceso vista esté listo para leer de la memoria compartida
     // El proceso vista le indica READY al main
@@ -67,22 +67,21 @@ int main(int argc, char *argv[])
         slave++;
         slave = slave % slaves;
         printf("Slave: %d, FILE: %s\n", slave, argv[i]);
-        // i++;
         if (writeSlavePipe(file_pipes[slave], argv[i]) != 0)
         {
             i++;
-            // continue;
         }
 
         char buffer[BUFFER_SIZE];
         int readBytes = readSlavePipe(hash_pipes[slave], buffer);
         if (readBytes != 0)
         {
-            // if(view_ready)
-            // writeToSharedMemory(shm_ptr, buffer, readBytes);
+            fwrite(buffer, sizeof(char), readBytes, result);
+            if(view_ready){
+                writeToSharedMemory(shm_ptr, buffer, readBytes);
+            }
             // Espero a que el proceso vista esté listo para leer
             // Escribo en un archivo resultado.txt
-            fwrite(buffer, sizeof(char), readBytes, result);
         }
     }
 
@@ -95,17 +94,17 @@ int main(int argc, char *argv[])
     if (slave_pid == -1 && slaves_left != 0)
         throwError("waitpid");
 
-    // if(view_ready)
-    //     writeToSharedMemory(shm_ptr, "\0", 0);
+    if(view_ready)
+        writeToSharedMemory(shm_ptr, "\0", 0);
 
-    // sem_destroy(&shm_ptr->sem_1);
-    // sem_destroy(&shm_ptr->sem_2);
+    sem_destroy(&shm_ptr->sem_1);
+    sem_destroy(&shm_ptr->sem_2);
     // // Unmap and close shared memory
-    // unMapSharedMemory(shm_ptr, shm_fd);
+    unMapSharedMemory(shm_ptr, shm_fd);
     
     // Cerramos el archivo resultado.txt
     fclose(result);
-    
+
     // Cerramos los pipes de los procesos esclavos antes de terminar
     for (int i = 0; i < slaves; i++)
         closeSlavePipes(file_pipes[i], hash_pipes[i]);
@@ -152,14 +151,10 @@ int writeSlavePipe(int *pipe, char *str)
  */
 int readSlavePipe(int *pipe, char *buffer)
 {
-    printf("Checking availability\n");
     int ret = checkAvailability(pipe[READ_FD], POLLIN, 100);
-    printf("Availability: %d\n", ret);
     if (ret == 0)
         return 0;
-    printf("Reading from pipe\n");
     ssize_t bytes_read = read(pipe[READ_FD], buffer, BUFFER_SIZE * sizeof(char));
-    printf("Bytes read: %ld, Buffer: %s\n", bytes_read, buffer);
     if (bytes_read == -1)
         throwError("readSlavePipe");
     return bytes_read;
@@ -263,7 +258,7 @@ int checkAvailability(int fd, int events, int timeout)
 int createSharedMemory()
 {
     // Si ya existe la memoria compartida, la eliminamos
-    // shm_unlink(SHM_NAME);
+    shm_unlink(SHM_NAME);
     int shm_fd = shm_open(SHM_NAME, O_CREAT | O_EXCL | O_RDWR, 0666);
     if (shm_fd == -1)
         throwError("shm_open");
@@ -272,13 +267,16 @@ int createSharedMemory()
     return shm_fd;
 }
 
+
 void writeToSharedMemory(struct shmbuf *shm_ptr, char *buffer, size_t buffer_size)
-{
-    if (sem_wait(&(shm_ptr->sem_2)) == -1)
-        throwError("sem_wait-2");
+{   
+
+    while (sem_wait(&shm_ptr->sem_2) == -1);
+        // throwError("sem_wait-2");
     shm_ptr->buffer_size = buffer_size;
     memcpy(shm_ptr->buffer, buffer, buffer_size);
-    if (sem_post(&(shm_ptr->sem_1)) == -1)
+
+    if (sem_post(&shm_ptr->sem_1) == -1)
         throwError("sem_post-1");
 }
 
@@ -310,14 +308,26 @@ int waitView(struct shmbuf *shm_ptr, int timeout_s)
     if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
         throwError("clock_gettime");
     ts.tv_sec += timeout_s;
+    // sleep(2);
+    // int ret;
+    // while((ret = sem_timedwait(&shm_ptr->sem_2, &ts)) == -1 && errno == EINTR);
+    // if (ret == -1 && errno == ETIMEDOUT)
+    //     return 0;
+    // if (ret == -1)
+    //     throwError("sem_timedwait");
+    
+    // if (sem_timedwait(&shm_ptr->sem_2, &ts) == -1)
+    // {
+    //     if (errno == ETIMEDOUT)
+    //         return 0;
 
-    while (sem_timedwait(&shm_ptr->sem_2, &ts) == -1)
-    {
-        if (errno == ETIMEDOUT)
-            return 0;
+    //     if (errno != EINTR)
+    //         throwError("sem_timedwait");
+    // }
 
-        if (errno != EINTR)
-            throwError("sem_timedwait");
-    }
+    // Esto es pasar por pipe a view
     return 1;
+
+    // No pasar por pipe a view
+    // return 0;
 }

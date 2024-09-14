@@ -13,7 +13,7 @@ void throwError(char *msg);
 int main(int argc, char *argv[])
 {
     struct shmbuf *shm_ptr;
-    sleep(2);
+    sleep(1);
     printf("Vista\n");
     int shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
     if (shm_fd == -1)
@@ -22,22 +22,15 @@ int main(int argc, char *argv[])
     if (shm_ptr == MAP_FAILED)
         throwError("mmap");
 
-    // if (sem_post(&(shm_ptr->sem_2)) == -1)
-    //     throwError("sem_post-2");
-    printf("Vista 2\n");
+    if (sem_post(&shm_ptr->sem_2) == -1)
+        throwError("sem_post-2");
     do
     {
-        // Indicar que está listo para leer
-        if (sem_post(&(shm_ptr->sem_2)) == -1)
+        if (sem_post(&shm_ptr->sem_2) == -1)
             throwError("sem_post-2");
-
-        // Esperar a que el proceso main escriba en la memoria compartida
-        if (sem_wait(&(shm_ptr->sem_1)) == -1)
-            throwError("sem_wait-1");
-
-        // Imprimir el contenido de la memoria compartida en pantalla
-        printf("%s\n", shm_ptr->buffer);
-
+        while (sem_wait(&shm_ptr->sem_1) == -1);
+            // throwError("sem_wait-1");
+        printf("%s", shm_ptr->buffer);
     } while (shm_ptr->buffer_size != 0);
 
     // Unmap and close shared memory
