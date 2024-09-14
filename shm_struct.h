@@ -14,9 +14,6 @@
 
 #define BUFFER_SIZE 2048
 
-// Al profe no le gusta mucho la idea de que esto aparezca en el contrato.
-#define SHM_NAME "/shm_md5"
-
 struct shmbuf
 {
     sem_t sem_1;

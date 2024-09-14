@@ -4,12 +4,13 @@
 
 // #define SLAVE_BIN "/Users/tobiasjuhasz/Projects/ITBA/SO/TPE1/src/bin/slave.o"
 // #define SLAVE_BIN "/Users/nicolaskim/Documents/SO/TP1/TPE_SO/src/bin/"
-#define SLAVE_BIN "/app/src/bin/slave.o"
+#define SLAVE_BIN "/app/src/bin/slave.o" // Docker
 #define READ_FD 0
 #define WRITE_FD 1
 #define WAIT_DEFAULT 0
 #define LOOP 1
 #define TWO 2
+#define SHM_NAME "/shm_md5"
 
 pid_t runSlave(char *slaveCommand, int file_pipes[TWO], int hash_pipes[TWO]);
 
@@ -189,6 +190,10 @@ pid_t runSlave(char *slaveCommand, int file_pipes[TWO], int hash_pipes[TWO])
         // Close the originals after dup
         close(file_pipes[READ_FD]);
         close(hash_pipes[WRITE_FD]);
+
+        // close all other file descriptors
+        // deberiamos armar una funcion que tome cada FD para cerrarlos y no tener que hacerlo uno por uno
+        //fcntl(..., F_SETFD, FD_CLOEXEC);
 
         char *slave_argv[] = {slaveCommand, NULL};
         execve(slaveCommand, slave_argv, NULL);
