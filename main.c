@@ -1,6 +1,7 @@
 #include <poll.h>
 #include <time.h>
 #include <errno.h>
+#include <sys/stat.h>
 #include "shm_struct.h"
 
 // #define SLAVE_BIN "/Users/tobiasjuhasz/Projects/ITBA/SO/TPE1/src/bin/slave.o"
@@ -30,6 +31,7 @@ void writeToSharedMemory(struct shmbuf *shm_ptr, char *buffer, size_t buffer_siz
 void unMapSharedMemory(struct shmbuf *shm_ptr, int shm_fd);
 
 int waitView(struct shmbuf *shm_ptr, int timeout_s);
+int isDirectory(const char *path); // Function to check if a file is a directory
 
 int main(int argc, char *argv[])
 {
@@ -63,6 +65,11 @@ int main(int argc, char *argv[])
     int slave = 0, i = 1;
     while (i < argc)
     {
+        if (isDirectory(argv[i])) { //Skipeo los directorios
+            i++;
+            continue;
+        }
+
         slave++;
         slave = slave % slaves;
 
@@ -134,7 +141,7 @@ void closeSlavePipes(int *file_pipe, int *hash_pipe)
  */
 int writeSlavePipe(int *pipe, char *str)
 {
-    if (checkAvailability(pipe[READ_FD], POLLIN, 1) != 0)
+    if (checkAvailability(pipe[READ_FD], POLLIN, 10) != 0)
         return 0;
     write(pipe[WRITE_FD], str, strlen(str) + 1);
     return 1;
@@ -145,7 +152,7 @@ int writeSlavePipe(int *pipe, char *str)
  */
 int readSlavePipe(int *pipe, char *buffer)
 {
-    int ret = checkAvailability(pipe[READ_FD], POLLIN, 1);
+    int ret = checkAvailability(pipe[READ_FD], POLLIN, 10);
     if (ret == 0)
         return 0;
     ssize_t bytes_read = read(pipe[READ_FD], buffer, BUFFER_SIZE * sizeof(char));
@@ -315,4 +322,13 @@ int waitView(struct shmbuf *shm_ptr, int timeout_s)
 
     // No pasar por pipe a view
     // return 0;
+}
+
+// Check if the file is a directory
+int isDirectory(const char *path) {
+    struct stat statbuf;
+    if (stat(path, &statbuf) != 0) {
+        return 0; // Cannot access path
+    }
+    return S_ISDIR(statbuf.st_mode);
 }
