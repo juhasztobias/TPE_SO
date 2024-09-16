@@ -4,8 +4,6 @@
 #include <sys/stat.h>
 #include "shm_struct.h"
 
-// #define SLAVE_BIN "/Users/tobiasjuhasz/Projects/ITBA/SO/TPE1/src/bin/slave.o"
-// #define SLAVE_BIN "/Users/nicolaskim/Documents/SO/TP1/TPE_SO/src/bin/"
 #define SLAVE_BIN "/app/src/bin/slave.o" // Docker
 #define READ_FD 0
 #define WRITE_FD 1
@@ -141,7 +139,7 @@ void closeSlavePipes(int *file_pipe, int *hash_pipe)
  */
 int writeSlavePipe(int *pipe, char *str)
 {
-    if (checkAvailability(pipe[READ_FD], POLLIN, 10) != 0)
+    if (checkAvailability(pipe[READ_FD], POLLOUT, 10) != 0)
         return 0;
     write(pipe[WRITE_FD], str, strlen(str) + 1);
     return 1;
@@ -208,7 +206,6 @@ pid_t runSlave(char *slaveCommand, int file_pipes[TWO], int hash_pipes[TWO])
 // Cierro los pipes que quedan abiertos en el main
 void closeMainPipes(int *file_pipe, int type)
 {
-    // FIX: Arroja Bad file descriptor
     int value = fcntl(file_pipe[type], F_SETFD, FD_CLOEXEC);
     if (value == -1)
     {
