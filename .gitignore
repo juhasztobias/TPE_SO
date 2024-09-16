@@ -4,3 +4,4 @@ test/
 # Binaries
 bin/
 *.o
+*.txt
