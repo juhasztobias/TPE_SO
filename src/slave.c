@@ -96,7 +96,7 @@ void writePipe(char *str)
     pfd.events = POLLIN;
 
     int ret;
-    while ((ret = poll(&(pfd), 1, 1)) != 0)
+    while ((ret = poll(&(pfd), 1, 10)) != 0)
     {
         if (ret == -1)
         {
