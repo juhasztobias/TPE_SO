@@ -1,17 +1,12 @@
 #include <unistd.h>
-// #include <sys/wait.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <semaphore.h>
 #include <poll.h>
 #include <string.h>
 
-// #define MD5_COMMAND "/sbin/md5"            // PATH AL MD5SUM en MacOS M3 (Nico)
-// #define MD5_COMMAND "/sbin/md5sum" // PATH AL MD5SUM en MacOS M1
-#define MD5_COMMAND "/usr/bin/md5sum " // PATH AL MD5SUM en Docker Linux
-#define READ_FD 0
-#define WRITE_FD 1
-#define WAIT_DEFAULT 0
+#define MD5_COMMAND "/usr/bin/md5sum "
 #define LOOP 1
 #define BUFFER_SIZE 1600
 #define COMMAND_SIZE 2048
@@ -19,6 +14,7 @@
 char *getMD5(char *buff, char *fileName, pid_t pid);
 int canRead();
 void writePipe(char *str);
+int isDirectory(const char *path);
 
 int main(int argc, char *argv[])
 {
@@ -28,7 +24,7 @@ int main(int argc, char *argv[])
     fsync(STDIN_FILENO);
     fsync(STDOUT_FILENO);
 
-    while (1)
+    while (LOOP)
     {
         int readable = canRead();
         if (readable == 0)
@@ -55,9 +51,21 @@ int main(int argc, char *argv[])
     fflush(stdout);
     return 0;
 }
+// Check if the file is a directory
+int isDirectory(const char *path)
+{
+    struct stat statbuf;
+    if (stat(path, &statbuf) != 0)
+        return 0; // Cannot access path
+
+    return S_ISDIR(statbuf.st_mode);
+}
 
 char *getMD5(char *buff, char *fileName, pid_t pid)
 {
+
+    if (isDirectory(fileName))
+        return NULL;
     char md5sum_command[COMMAND_SIZE];
     sprintf(md5sum_command, "%s \'%s\'", MD5_COMMAND, fileName);
     FILE *fp = popen(md5sum_command, "r");
@@ -90,6 +98,8 @@ int canRead()
 
 void writePipe(char *str)
 {
+    if (str == NULL)
+        return;
     // fprintf(stdout, "Writing: %s\n", str);
     struct pollfd pfd;
     pfd.fd = STDOUT_FILENO;

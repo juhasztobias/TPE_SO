@@ -1,10 +1,11 @@
+
 #include <poll.h>
 #include <time.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include "shm_struct.h"
 
-#define SLAVE_BIN "/app/src/bin/slave.o" // Docker
+#define SLAVE_BIN "/app/src/bin/slave.o"
 #define READ_FD 0
 #define WRITE_FD 1
 #define WAIT_DEFAULT 0
@@ -14,18 +15,17 @@
 
 pid_t runSlave(char *slaveCommand, int file_pipes[TWO], int hash_pipes[TWO]);
 
-int writeSlavesPipes(int * file_pipes[TWO], char ** argv, int slaves, int currentArg, int maxArg);
+int writeSlavesPipes(int *file_pipes[TWO], char **argv, int slaves, int currentArg, int maxArg);
 int writeSlavePipe(int *pipe, char *str);
 
 int readSlavesPipe(
-    int * hash_pipes[TWO], 
-    int slaves, 
-    FILE* file,
-    void * shm_ptr,
+    int *hash_pipes[TWO],
+    int slaves,
+    FILE *file,
+    void *shm_ptr,
     int view_ready,
     int currentArg,
-    int maxArg
-);
+    int maxArg);
 int readSlavePipe(int *pipe, char *buffer);
 
 int slavePipes(int *file_pipe, int *hash_pipe);
@@ -44,50 +44,51 @@ int isDirectory(const char *path);
 
 int main(int argc, char *argv[])
 {
-    int slaves = argc / 10 + 1;
-    // int slaves = 10;
-    //int file_pipes[slaves][TWO]; // Pipes main -> slave
-   // int hash_pipes[slaves][TWO]; // Pipes slave -> main
-    int **file_pipes = malloc(sizeof(int*) * slaves); // Allocate memory for file_pipes
-    int **hash_pipes = malloc(sizeof(int*) * slaves); // Allocate memory for hash_pipes
+    int slaves = argc / 2 + 1;
+    // int slaves = 5;
+    // int file_pipes[slaves][TWO]; // Pipes main -> slave
+    // int hash_pipes[slaves][TWO]; // Pipes slave -> main
+    int **file_pipes = malloc(sizeof(int *) * slaves); // Allocate memory for file_pipes
+    int **hash_pipes = malloc(sizeof(int *) * slaves); // Allocate memory for hash_pipes
 
     // Create the result file
     FILE *result = fopen("resultado.txt", "w+");
     if (result == NULL)
     {
-        perror("Error opening file");
+        perror("fopen");
         return EXIT_FAILURE;
     }
 
     // Create slave processes and initialize pipes
-    for (int i = 0; i < slaves; i++) {
+    for (int i = 0; i < slaves; i++)
+    {
         file_pipes[i] = malloc(sizeof(int) * TWO);
         hash_pipes[i] = malloc(sizeof(int) * TWO);
         runSlave(SLAVE_BIN, file_pipes[i], hash_pipes[i]);
     }
 
     int shm_fd = createSharedMemory();
-    struct shmbuf* shm_ptr = mapSharedMemory(shm_fd);
+    struct shmbuf *shm_ptr = mapSharedMemory(shm_fd);
 
     if (sem_init(&shm_ptr->sem_1, 1, 0) == -1)
         throwError("sem_init-1");
     if (sem_init(&shm_ptr->sem_2, 1, 0) == -1)
         throwError("sem_init-2");
 
-    int view_ready = waitView(shm_ptr, 2);
+    int view_ready = waitView(shm_ptr, 5);
 
+    int countDirectories = 0;
+    for (int i = 1; i < argc; i++)
+    {
+        if (isDirectory(argv[i]))
+            countDirectories++;
+    }
 
+    int writtenFiles = 1, readFiles = 1 + countDirectories;
 
-    int writtenFiles = 1, readFiles = 1;
     while (writtenFiles < argc || readFiles < argc)
     {
-        if (isDirectory(argv[writtenFiles])) { //Skipeo los directorios
-            writtenFiles++;
-            readFiles++;
-            continue;
-        }
-        
-        writtenFiles += writeSlavesPipes((int **)file_pipes, argv, slaves, writtenFiles, argc);
+        writtenFiles += writeSlavesPipes(file_pipes, argv, slaves, writtenFiles, argc);
 
         readFiles += readSlavesPipe(
             hash_pipes,
@@ -96,21 +97,18 @@ int main(int argc, char *argv[])
             shm_ptr,
             view_ready,
             readFiles,
-            argc
-        );
+            argc);
     }
-
 
     // Esperar a que los procesos esclavos terminen
     int status, slave_pid, slaves_left = slaves;
     while ((slave_pid = waitpid(-1, &status, WAIT_DEFAULT)) > 0)
         slaves_left--;
 
-    // Si no terminaron todos los slaves, tirar error
     if (slave_pid == -1 && slaves_left != 0)
         throwError("waitpid");
 
-    if (view_ready)
+    if (view_ready != 0)
         writeToSharedMemory(shm_ptr, "\0", 0);
 
     sem_destroy(&shm_ptr->sem_1);
@@ -122,7 +120,8 @@ int main(int argc, char *argv[])
     fclose(result);
 
     // Cerramos los pipes de los procesos esclavos antes de terminar
-    for (int j = 0; j < slaves; j++){
+    for (int j = 0; j < slaves; j++)
+    {
         closeSlavePipes(file_pipes[j], hash_pipes[j]);
         free(file_pipes[j]);
         free(hash_pipes[j]);
@@ -155,26 +154,31 @@ void closeSlavePipes(int *file_pipe, int *hash_pipe)
     close(hash_pipe[READ_FD]);
 }
 
-int writeSlavesPipes(int* file_pipes[TWO], char ** argv, int slaves, int currentArg, int maxArg){
-    if (slaves <= 0 || currentArg >= maxArg) return 0;
+int writeSlavesPipes(int *file_pipes[TWO], char **argv, int slaves, int currentArg, int maxArg)
+{
+    if (slaves <= 0 || currentArg >= maxArg)
+        return 0;
 
     struct pollfd slavesPollfd[slaves];
-    for(int i = 0; i < slaves; i++){
+    for (int i = 0; i < slaves; i++)
+    {
         slavesPollfd[i].fd = file_pipes[i][WRITE_FD];
         slavesPollfd[i].events = POLLOUT;
     }
 
-    if(poll(slavesPollfd, slaves, -1) == -1)
+    if (poll(slavesPollfd, slaves, -1) == -1)
         throwError("Poll fd");
 
     int toReturn = 0;
-    for (int i = 0; i < slaves && currentArg < maxArg; i++){
-        if((slavesPollfd[i].revents & POLLOUT) == 0) continue;
+    for (int i = 0; i < slaves && currentArg < maxArg; i++)
+    {
+        if ((slavesPollfd[i].revents & POLLOUT) == 0)
+            continue;
 
         writeSlavePipe(file_pipes[i], argv[currentArg]);
         toReturn++;
         currentArg++;
-    }   
+    }
 
     return toReturn;
 }
@@ -192,38 +196,43 @@ int writeSlavePipe(int *pipe, char *str)
  * Lee de un pipe
  */
 int readSlavesPipe(
-    int * hash_pipes[TWO],  
-    int slaves, 
-    FILE* file,
-    void * shm_ptr,
+    int *hash_pipes[TWO],
+    int slaves,
+    FILE *file,
+    void *shm_ptr,
     int view_ready,
     int currentArg,
-    int maxArg
-){
-    if (slaves <= 0 || currentArg >= maxArg) return 0;
+    int maxArg)
+{
+    if (slaves <= 0 || currentArg >= maxArg)
+        return 0;
     struct pollfd slavesPollfd[slaves + 1];
-    for(int i = 0; i < slaves; i++){
+    for (int i = 0; i < slaves; i++)
+    {
         slavesPollfd[i].fd = hash_pipes[i][READ_FD];
-        slavesPollfd[i].events = POLLIN;
+        slavesPollfd[i].events = POLLIN | POLLOUT;
     }
 
-    if(poll(slavesPollfd, slaves, -1) == -1)
+    // Se queda trabado acá.
+    if (poll(slavesPollfd, slaves, -1) == -1)
         throwError("Poll fd");
 
     int readSlaves = 0;
     char buffer[BUFFER_SIZE];
-    for (int i = 0; i < slaves && currentArg < maxArg; i++){
-        if((slavesPollfd[i].revents & POLLIN) == 0) continue;
+    for (int i = 0; i < slaves && currentArg < maxArg; i++)
+    {
 
+        if ((slavesPollfd[i].revents & POLLIN) == 0)
+            continue;
         ssize_t bytes_read = read(hash_pipes[i][READ_FD], buffer, BUFFER_SIZE * sizeof(char));
-
-        fwrite(buffer, sizeof(char), bytes_read, file);
-        if (view_ready)
+        if ((fwrite(buffer, sizeof(char), bytes_read, file)) == 0)
+            throwError("Error al escribir los resultados en el archivo");
+        if (view_ready != 0)
             writeToSharedMemory(shm_ptr, buffer, bytes_read);
+
         currentArg++;
         readSlaves++;
-    }   
-
+    }
     return readSlaves;
 }
 /**
@@ -286,36 +295,14 @@ void closeMainPipes(int *file_pipe, int type)
  * TERMINA PROCESOS
  */
 
-/**
- * UTILS
- */
-/**
- * Lanza un error y termina el programa
- */
+// Lanza un error y termina el programa
 void throwError(char *msg)
 {
     perror(msg);
     exit(EXIT_FAILURE);
 }
 
-/**
- * Checkea si un file descriptor tiene eventos disponibles
- */
-int checkAvailability(int fd, int events, int timeout)
-{
-    struct pollfd pfd;
-    pfd.fd = fd;
-    pfd.events = events;
-    int ret = poll(&pfd, 1, -1);
-    if (ret == -1)
-        throwError("poll");
-    return ret;
-}
-/**
- * TERMINA UTILS
- */
-
-// #region SHM
+// region SHM
 /**
  * Crea la memoria compartida
  */
@@ -333,17 +320,14 @@ int createSharedMemory()
 
 void writeToSharedMemory(struct shmbuf *shm_ptr, char *buffer, size_t buffer_size)
 {
-
-    while (sem_wait(&shm_ptr->sem_2) == -1)
-    {
+    if (sem_wait(&shm_ptr->sem_2) == -1)
         if (errno != EINTR)
             throwError("sem_wait-1");
-    }
     if (sem_post(&shm_ptr->sem_1) == -1)
         throwError("sem_post-1");
-    // throwError("sem_wait-2");
     shm_ptr->buffer_size = buffer_size;
     memcpy(shm_ptr->buffer, buffer, buffer_size);
+    return;
 }
 
 /**
@@ -375,12 +359,15 @@ int waitView(struct shmbuf *shm_ptr, int timeout_s)
         throwError("clock_gettime");
     ts.tv_sec += timeout_s;
 
-    // int ret;
-    // while((ret = sem_timedwait(&shm_ptr->sem_2, &ts)) == -1 && errno == EINTR);
-    // if (ret == -1 && errno == ETIMEDOUT)
-    //     return 0;
-    // if (ret == -1)
-    //     throwError("sem_timedwait");
+    int ret;
+    while ((ret = sem_timedwait(&shm_ptr->sem_2, &ts)) == -1 && errno == EINTR)
+        continue;
+    if (ret == -1)
+    {
+        if (errno == ETIMEDOUT)
+            return 0;
+        throwError("sem_timedwait");
+    }
 
     return 1;
 }
@@ -395,75 +382,3 @@ int isDirectory(const char *path)
     }
     return S_ISDIR(statbuf.st_mode);
 }
-
-
-
-/*  ---  NUEVA LOGICA PARA ESCRIBIR/LEER  ---  */
-
-    // struct pollfd fdsFile[slaves];
-    // struct pollfd fdsHash[slaves];
-
-    // Inicializamos la estructura poll
-    // for (int i = 0; i < slaves; i++)
-    // {
-    //     fdsFile[i].fd = file_pipes[i][WRITE_FD]; // Usamos el extremo de escritura
-    //     fdsFile[i].events = POLLOUT;             // Esperamos que el esclavo esté listo para recibir
-    // }
-
-    // for (int i = 0; i < slaves; i++)
-    // {
-    //     fdsHash[i].fd = hash_pipes[i][READ_FD]; // Usamos el extremo de lectura
-    //     fdsHash[i].events = POLLIN;             // Esperamos que el esclavo esté listo para recibir
-    // }
-
-    // for (int i = 0; i < argc; i++)
-    // {
-    //     if (isDirectory(argv[i]))
-    //     { // Skipeo los directorios
-    //         i++;
-    //         continue;
-    //     }
-
-    //     // Esperamos hasta que al menos un esclavo esté listo para escribir
-    //     int ready = poll(fdsFile, slaves, -1); // Esperar indefinidamente hasta que un pipe esté disponible
-    //     if (ready == -1)
-    //     {
-    //         perror("poll");
-    //         exit(EXIT_FAILURE);
-    //     }
-
-    //     for (int jx = 0; j < slaves && i < argc; j++)
-    //     {
-    //         // Si el esclavo está listo para recibir
-    //         if (fdsFile[j].revents & POLLOUT == 0) continue;
-
-    //         // Esto escribe de a un solo file a la vez.
-    //         // break; // salgo de este mini ciclo, 
-    //         writeSlavePipe(file_pipes[j], argv[i]);
-    //         i++;
-    //     }
-
-    //     // Esperamos hasta que al menos un slave envíe un mensaje
-    //     ready = poll(fdsHash, slaves, -1); // Esperar indefinidamente hasta que un pipe tenga datos para leer
-    //     if (ready == -1)
-    //     {
-    //         perror("poll");
-    //         exit(EXIT_FAILURE);
-    //     }
-
-    //     ssize_t * readBytes;
-    //     char buffer[BUFFER_SIZE];
-    //     for (int j = 0; j < slaves; j++)
-    //     {
-    //         if (fdsHash[j].revents & POLLIN)
-    //         {   // Si hay datos disponibles para leer
-    //             readBytes = read(hash_pipes[READ_FD], buffer, BUFFER_SIZE * sizeof(char));
-    //             break; 
-    //         }
-    //     }
-
-    //     // Escribo en un archivo resultado.txt
-    //     fwrite(buffer, sizeof(char), &readBytes, result);
-    //     // if (view_ready)
-    //     //     writeToSharedMemory(shm_ptr, buffer, readBytes);
-    // }

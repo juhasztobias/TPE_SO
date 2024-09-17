@@ -1,4 +1,0 @@
-services:
-  md5:
-    build: .
-    image: test/md5
