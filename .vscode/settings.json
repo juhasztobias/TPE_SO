@@ -1,9 +1,0 @@
-{
-    "files.associations": {
-        ".fantomasignore": "ignore",
-        "cdefs.h": "c",
-        "unistd.h": "c",
-        "shm_struct.h": "c",
-        "poll.h": "c"
-    },
-}
