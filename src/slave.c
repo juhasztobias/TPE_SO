@@ -43,8 +43,7 @@ int main(int argc, char *argv[])
         // Elimina el salto de línea del nombre del archivo si es que existe
         file[strcspn(file, "\n")] = 0;
         char buffer[BUFFER_SIZE * 2];
-        // if (strcmp(file, "main.o") == 0)
-        //     continue;
+
         writePipe(getMD5(buffer, file, pid));
     }
 
@@ -63,7 +62,6 @@ int isDirectory(const char *path)
 
 char *getMD5(char *buff, char *fileName, pid_t pid)
 {
-
     if (isDirectory(fileName))
         return NULL;
     char md5sum_command[COMMAND_SIZE];
@@ -100,7 +98,6 @@ void writePipe(char *str)
 {
     if (str == NULL)
         return;
-    // fprintf(stdout, "Writing: %s\n", str);
     struct pollfd pfd;
     pfd.fd = STDOUT_FILENO;
     pfd.events = POLLIN;

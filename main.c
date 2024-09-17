@@ -26,11 +26,10 @@ int readSlavesPipe(
     int view_ready,
     int currentArg,
     int maxArg);
-int readSlavePipe(int *pipe, char *buffer);
+
 
 int slavePipes(int *file_pipe, int *hash_pipe);
 void closeSlavePipes(int *file_pipe, int *hash_pipe);
-int checkAvailability(int fd, int events, int timeout);
 void closeMainPipes(int *file_pipe, int type);
 void throwError(char *msg);
 
@@ -45,9 +44,6 @@ int isDirectory(const char *path);
 int main(int argc, char *argv[])
 {
     int slaves = argc / 2 + 1;
-    // int slaves = 5;
-    // int file_pipes[slaves][TWO]; // Pipes main -> slave
-    // int hash_pipes[slaves][TWO]; // Pipes slave -> main
     int **file_pipes = malloc(sizeof(int *) * slaves); // Allocate memory for file_pipes
     int **hash_pipes = malloc(sizeof(int *) * slaves); // Allocate memory for hash_pipes
 
@@ -99,7 +95,6 @@ int main(int argc, char *argv[])
             argc);
     }
 
-    // Esperar a que los procesos esclavos terminen
     int status, slave_pid, slaves_left = slaves;
     while ((slave_pid = waitpid(-1, &status, WAIT_DEFAULT)) > 0)
         slaves_left--;

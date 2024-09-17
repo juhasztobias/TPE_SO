@@ -13,8 +13,7 @@ int main(int argc, char *argv[])
     while (shm_fd == -1)
     {
         shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
-        // Si la memoria compartida aún no existe, sigue intentando hasta que exista.
-        //(Esto corrige el error de que la vista se ejecute antes de que el main haya creado la memoria compartida)
+
         if (shm_fd == -1 && errno == ENOENT)
             usleep(100000); // Espera 100ms antes de intentar de nuevo
         else if (shm_fd == -1)
