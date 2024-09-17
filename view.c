@@ -8,11 +8,18 @@ void throwError(char *msg);
 int main(int argc, char *argv[])
 {
     struct shmbuf *shm_ptr;
-    sleep(1); // Waiting for shared memory to be ready
     printf("Vista\n");
-    int shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
-    if (shm_fd == -1)
-        throwError("shm_open");
+    int shm_fd = -1;
+    while (shm_fd == -1)
+    {
+        shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
+        // Si la memoria compartida aún no existe, sigue intentando hasta que exista.
+        //(Esto corrige el error de que la vista se ejecute antes de que el main haya creado la memoria compartida)
+        if (shm_fd == -1 && errno == ENOENT)
+            usleep(100000); // Espera 100ms antes de intentar de nuevo
+        else if (shm_fd == -1)
+            throwError("shm_open");
+    }
 
     shm_ptr = mmap(NULL, sizeof(struct shmbuf), PROT_WRITE | PROT_READ, MAP_SHARED, shm_fd, 0);
     if (shm_ptr == MAP_FAILED)

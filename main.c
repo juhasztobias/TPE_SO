@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
     if (sem_init(&shm_ptr->sem_2, 1, 0) == -1)
         throwError("sem_init-2");
 
-    int view_ready = waitView(shm_ptr, 5);
+    int view_ready = waitView(shm_ptr, 2);
 
     int countDirectories = 0;
     for (int i = 1; i < argc; i++)
@@ -89,7 +89,6 @@ int main(int argc, char *argv[])
     while (writtenFiles < argc || readFiles < argc)
     {
         writtenFiles += writeSlavesPipes(file_pipes, argv, slaves, writtenFiles, argc);
-
         readFiles += readSlavesPipe(
             hash_pipes,
             slaves,

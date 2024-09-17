@@ -23,9 +23,9 @@ int main(int argc, char *argv[])
 
     fsync(STDIN_FILENO);
     fsync(STDOUT_FILENO);
-
     while (LOOP)
     {
+        // Hasta que se pueda leer de la entrada estándar
         int readable = canRead();
         if (readable == 0)
             break;
@@ -91,9 +91,9 @@ int canRead()
 {
     struct pollfd pfd;
     pfd.fd = STDIN_FILENO;
-    pfd.events = POLLIN;
+    pfd.events = POLLOUT | POLLIN;
 
-    return poll(&pfd, 1, 1000); // Espera hasta 1 segundo por datos
+    return poll(&pfd, 1, 2000);
 }
 
 void writePipe(char *str)
