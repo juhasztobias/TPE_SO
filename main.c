@@ -1,4 +1,3 @@
-
 #include <poll.h>
 #include <time.h>
 #include <errno.h>
@@ -11,9 +10,9 @@
 #define WAIT_DEFAULT 0
 #define LOOP 1
 #define TWO 2
-#define SHM_NAME "/shm_md5"
+#define SHM_NAME "/shm_md5_6"
 
-pid_t runSlave(char *slaveCommand, int file_pipes[TWO], int hash_pipes[TWO]);
+pid_t runSlave(char *slaveCommand, int *file_pipes[TWO], int *hash_pipes[TWO], int current, int prev_slaves);
 
 int writeSlavesPipes(int *file_pipes[TWO], char **argv, int slaves, int currentArg, int maxArg);
 int writeSlavePipe(int *pipe, char *str);
@@ -26,7 +25,6 @@ int readSlavesPipe(
     int view_ready,
     int currentArg,
     int maxArg);
-
 
 int slavePipes(int *file_pipe, int *hash_pipe);
 void closeSlavePipes(int *file_pipe, int *hash_pipe);
@@ -43,7 +41,8 @@ int isDirectory(const char *path);
 
 int main(int argc, char *argv[])
 {
-    int slaves = argc / 2 + 1;
+    int slaves = 5;
+    // int slaves = argc / 2 + 1;
     int **file_pipes = malloc(sizeof(int *) * slaves); // Allocate memory for file_pipes
     int **hash_pipes = malloc(sizeof(int *) * slaves); // Allocate memory for hash_pipes
 
@@ -60,7 +59,7 @@ int main(int argc, char *argv[])
     {
         file_pipes[i] = malloc(sizeof(int) * TWO);
         hash_pipes[i] = malloc(sizeof(int) * TWO);
-        runSlave(SLAVE_BIN, file_pipes[i], hash_pipes[i]);
+        runSlave(SLAVE_BIN, file_pipes, hash_pipes, i, i - 1);
     }
 
     int shm_fd = createSharedMemory();
@@ -240,10 +239,10 @@ int readSlavesPipe(
 /**
  * Ejecutar un proceso esclavo
  */
-pid_t runSlave(char *slaveCommand, int file_pipes[TWO], int hash_pipes[TWO])
+pid_t runSlave(char *slaveCommand, int *file_pipes[TWO], int *hash_pipes[TWO], int current, int prev_slaves)
 {
     // Crear los pipes para la comunicación entre el main y los slaves
-    if (slavePipes(file_pipes, hash_pipes) == -1)
+    if (slavePipes(file_pipes[current], hash_pipes[current]) == -1)
         throwError("Slave Pipe");
 
     pid_t pid = fork();
@@ -255,16 +254,22 @@ pid_t runSlave(char *slaveCommand, int file_pipes[TWO], int hash_pipes[TWO])
         close(STDOUT_FILENO); // Close read-end of hash pipe
 
         // Redirect pipes to stdin and stdout for the child
-        dup2(file_pipes[READ_FD], STDIN_FILENO);   // Redirect file pipe read-end to stdin
-        dup2(hash_pipes[WRITE_FD], STDOUT_FILENO); // Redirect hash pipe write-end to stdout
+        dup2(file_pipes[current][READ_FD], STDIN_FILENO);   // Redirect file pipe read-end to stdin
+        dup2(hash_pipes[current][WRITE_FD], STDOUT_FILENO); // Redirect hash pipe write-end to stdout
 
         // Close the originals after dup
-        close(file_pipes[READ_FD]);
-        close(hash_pipes[WRITE_FD]);
-
+        close(file_pipes[current][READ_FD]);
+        close(hash_pipes[current][WRITE_FD]);
+        close(file_pipes[current][WRITE_FD]);
+        close(hash_pipes[current][READ_FD]);
         // close all other file descriptors
-        closeMainPipes(file_pipes, WRITE_FD);
-        closeMainPipes(hash_pipes, READ_FD);
+        for (int i = 0; i < prev_slaves + 1; i++)
+        {
+            close(file_pipes[i][READ_FD]);
+            close(hash_pipes[i][WRITE_FD]);
+            close(file_pipes[i][WRITE_FD]);
+            close(hash_pipes[i][READ_FD]);
+        }
 
         char *slave_argv[] = {slaveCommand, NULL};
         execve(slaveCommand, slave_argv, NULL);

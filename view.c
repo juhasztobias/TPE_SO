@@ -1,7 +1,7 @@
 #include "shm_struct.h"
 #include <errno.h>
 
-#define SHM_NAME "/shm_md5"
+#define SHM_NAME "/shm_md5_6"
 
 void throwError(char *msg);
 
@@ -12,10 +12,15 @@ int main(int argc, char *argv[])
     int shm_fd = -1;
     while (shm_fd == -1)
     {
+        printf("Vista 2 \n");
         shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
 
+        printf("Vista 3 \n");
+
         if (shm_fd == -1 && errno == ENOENT)
+        {
             usleep(100000); // Espera 100ms antes de intentar de nuevo
+        }
         else if (shm_fd == -1)
             throwError("shm_open");
     }
