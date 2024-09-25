@@ -1,9 +1,7 @@
 #include "shm_struct.h"
 #include <errno.h>
 
-#define SHM_NAME "/shm_md5_6"
-
-void throwError(char *msg);
+#define SHM_NAME "/shm_md5_7"
 
 int main(int argc, char *argv[])
 {
@@ -34,11 +32,12 @@ int main(int argc, char *argv[])
 
     do
     {
+        watchSharedMemory(SHM_NAME,"In view");
         // Signal that the data has been processed
         if (sem_post(&shm_ptr->sem_2) == -1)
-            throwError("sem_post-2");
+                 throwError("sem_post-2");
 
-        if (sem_wait(&shm_ptr->sem_1) == -1)
+        while (sem_wait(&shm_ptr->sem_1) == -1)
         {
             if (errno != EINTR)
                 throwError("sem_wait-1");
@@ -46,19 +45,15 @@ int main(int argc, char *argv[])
 
         // Print buffer contents
         printf("%s", shm_ptr->buffer);
-
+        if(shm_ptr->buffer_size != 0)
+            fprintf(stderr, "Vista de bufer: %s\n", shm_ptr->buffer);
         // Clear the buffer after processing to avoid repeated printing
-        memset(shm_ptr->buffer, 0, sizeof(shm_ptr->buffer));
+        // memset(shm_ptr->buffer, 0, sizeof(shm_ptr->buffer));
+        
 
     } while (shm_ptr->buffer_size != 0); // Exit when there's no more data
 
     // Unmap and close shared memory
     munmap(shm_ptr, sizeof(struct shmbuf));
     close(shm_fd);
-}
-
-void throwError(char *msg)
-{
-    perror(msg);
-    exit(EXIT_FAILURE);
 }

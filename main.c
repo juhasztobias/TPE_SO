@@ -10,7 +10,7 @@
 #define WAIT_DEFAULT 0
 #define LOOP 1
 #define TWO 2
-#define SHM_NAME "/shm_md5_6"
+#define SHM_NAME "/shm_md5_7"
 
 pid_t runSlave(char *slaveCommand, int *file_pipes[TWO], int *hash_pipes[TWO], int current, int prev_slaves);
 
@@ -29,7 +29,6 @@ int readSlavesPipe(
 int slavePipes(int *file_pipe, int *hash_pipe);
 void closeSlavePipes(int *file_pipe, int *hash_pipe);
 void closeMainPipes(int *file_pipe, int type);
-void throwError(char *msg);
 
 int createSharedMemory();
 struct shmbuf *mapSharedMemory(int shm_fd);
@@ -41,8 +40,8 @@ int isDirectory(const char *path);
 
 int main(int argc, char *argv[])
 {
-    int slaves = 5;
-    // int slaves = argc / 2 + 1;
+   // int slaves = 5;
+    int slaves = argc / 10 + 1;
     int **file_pipes = malloc(sizeof(int *) * slaves); // Allocate memory for file_pipes
     int **hash_pipes = malloc(sizeof(int *) * slaves); // Allocate memory for hash_pipes
 
@@ -71,7 +70,7 @@ int main(int argc, char *argv[])
         throwError("sem_init-2");
 
     int view_ready = waitView(shm_ptr, 2);
-
+    if(view_ready == 0) printf("No se encontró viewer");
     int countDirectories = 0;
     for (int i = 1; i < argc; i++)
     {
@@ -100,9 +99,11 @@ int main(int argc, char *argv[])
 
     if (slave_pid == -1 && slaves_left != 0)
         throwError("waitpid");
-
+    
+    fprintf(stderr, "Llego hasta acá\n");
     if (view_ready != 0)
         writeToSharedMemory(shm_ptr, "\0", 0);
+    fprintf(stderr, "Llego hasta acá 2\n");
 
     sem_destroy(&shm_ptr->sem_1);
     sem_destroy(&shm_ptr->sem_2);
@@ -115,6 +116,7 @@ int main(int argc, char *argv[])
     // Cerramos los pipes de los procesos esclavos antes de terminar
     for (int j = 0; j < slaves; j++)
     {
+        fprintf(stderr,"Cerrando pipes %d\n", j);
         closeSlavePipes(file_pipes[j], hash_pipes[j]);
         free(file_pipes[j]);
         free(hash_pipes[j]);
@@ -295,11 +297,11 @@ void closeMainPipes(int *file_pipe, int type)
  */
 
 // Lanza un error y termina el programa
-void throwError(char *msg)
-{
-    perror(msg);
-    exit(EXIT_FAILURE);
-}
+// void throwError(char *msg)
+// {
+//     perror(msg);
+//     exit(EXIT_FAILURE);
+// }
 
 // region SHM
 /**
@@ -319,13 +321,13 @@ int createSharedMemory()
 
 void writeToSharedMemory(struct shmbuf *shm_ptr, char *buffer, size_t buffer_size)
 {
-    if (sem_wait(&shm_ptr->sem_2) == -1)
+    while (sem_wait(&shm_ptr->sem_2) == -1)
         if (errno != EINTR)
             throwError("sem_wait-1");
-    if (sem_post(&shm_ptr->sem_1) == -1)
-        throwError("sem_post-1");
     shm_ptr->buffer_size = buffer_size;
     memcpy(shm_ptr->buffer, buffer, buffer_size);
+    if (sem_post(&shm_ptr->sem_1) == -1)
+        throwError("sem_post-1");
     return;
 }
 
@@ -358,16 +360,17 @@ int waitView(struct shmbuf *shm_ptr, int timeout_s)
         throwError("clock_gettime");
     ts.tv_sec += timeout_s;
 
-    int ret;
-    while ((ret = sem_timedwait(&shm_ptr->sem_2, &ts)) == -1 && errno == EINTR)
-        continue;
+    watchSharedMemory(SHM_NAME, "Before wait");
+    // int ret = sem_timedwait(&shm_ptr->sem_2, &ts);
+    int ret = sem_wait(&shm_ptr->sem_2);
     if (ret == -1)
     {
-        if (errno == ETIMEDOUT)
-            return 0;
-        throwError("sem_timedwait");
+        // if (errno == ETIMEDOUT)
+        //     return 0;
+        if(errno == EINTR)
+            throwError("sem_timedwait");
     }
-
+    watchSharedMemory(SHM_NAME, "After wait");
     return 1;
 }
 
