@@ -40,8 +40,8 @@ int isDirectory(const char *path);
 
 int main(int argc, char *argv[])
 {
-   // int slaves = 5;
-    int slaves = argc / 10 + 1;
+    // int slaves = 5;
+    int slaves = argc / 2 + 1;
     int **file_pipes = malloc(sizeof(int *) * slaves); // Allocate memory for file_pipes
     int **hash_pipes = malloc(sizeof(int *) * slaves); // Allocate memory for hash_pipes
 
@@ -100,10 +100,8 @@ int main(int argc, char *argv[])
     if (slave_pid == -1 && slaves_left != 0)
         throwError("waitpid");
     
-    fprintf(stderr, "Llego hasta acá\n");
     if (view_ready != 0)
         writeToSharedMemory(shm_ptr, "\0", 0);
-    fprintf(stderr, "Llego hasta acá 2\n");
 
     sem_destroy(&shm_ptr->sem_1);
     sem_destroy(&shm_ptr->sem_2);
@@ -116,7 +114,6 @@ int main(int argc, char *argv[])
     // Cerramos los pipes de los procesos esclavos antes de terminar
     for (int j = 0; j < slaves; j++)
     {
-        fprintf(stderr,"Cerrando pipes %d\n", j);
         closeSlavePipes(file_pipes[j], hash_pipes[j]);
         free(file_pipes[j]);
         free(hash_pipes[j]);
@@ -205,7 +202,7 @@ int readSlavesPipe(
     for (int i = 0; i < slaves; i++)
     {
         slavesPollfd[i].fd = hash_pipes[i][READ_FD];
-        slavesPollfd[i].events = POLLIN | POLLOUT;
+        slavesPollfd[i].events = POLLIN;
     }
 
     // Se queda trabado acá.
@@ -355,24 +352,47 @@ void unMapSharedMemory(struct shmbuf *shm_ptr, int shm_fd)
 
 int waitView(struct shmbuf *shm_ptr, int timeout_s)
 {
-    struct timespec ts;
-    if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
+    struct timespec ts, current_time;
+    if (timeout_s <= 0) {
+        throwError("Invalid timeout value");
+    }
+
+    // Get the current time and set the timeout
+    if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
         throwError("clock_gettime");
+    }
     ts.tv_sec += timeout_s;
 
-    watchSharedMemory(SHM_NAME, "Before wait");
-    // int ret = sem_timedwait(&shm_ptr->sem_2, &ts);
-    int ret = sem_wait(&shm_ptr->sem_2);
-    if (ret == -1)
-    {
-        // if (errno == ETIMEDOUT)
-        //     return 0;
-        if(errno == EINTR)
-            throwError("sem_timedwait");
+    int ret;
+    
+    // Loop while interrupted by signals, and track elapsed time
+    while ((ret = sem_timedwait(&shm_ptr->sem_2, &ts)) == -1 && errno == EINTR) {
+        // Get the current time to see if we are exceeding the timeout
+        if (clock_gettime(CLOCK_REALTIME, &current_time) == -1) {
+            throwError("clock_gettime");
+        }
+
+        // If the current time exceeds the timeout, break out of the loop
+        if (current_time.tv_sec > ts.tv_sec ||
+            (current_time.tv_sec == ts.tv_sec && current_time.tv_nsec >= ts.tv_nsec)) {
+            errno = ETIMEDOUT;  // Set timeout error
+            ret = -1;
+            break;
+        }
+
     }
-    watchSharedMemory(SHM_NAME, "After wait");
-    return 1;
+
+    if (ret == -1) {
+        if (errno == ETIMEDOUT) {
+            return 0;  // Timeout occurred
+        }
+        throwError("sem_timedwait");  // Handle other semaphore errors
+    }
+
+    return 1;  // Success
 }
+
+
 
 // Check if the file is a directory
 int isDirectory(const char *path)

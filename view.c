@@ -10,11 +10,7 @@ int main(int argc, char *argv[])
     int shm_fd = -1;
     while (shm_fd == -1)
     {
-        printf("Vista 2 \n");
         shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
-
-        printf("Vista 3 \n");
-
         if (shm_fd == -1 && errno == ENOENT)
         {
             usleep(100000); // Espera 100ms antes de intentar de nuevo
@@ -32,7 +28,6 @@ int main(int argc, char *argv[])
 
     do
     {
-        watchSharedMemory(SHM_NAME,"In view");
         // Signal that the data has been processed
         if (sem_post(&shm_ptr->sem_2) == -1)
                  throwError("sem_post-2");
@@ -45,10 +40,7 @@ int main(int argc, char *argv[])
 
         // Print buffer contents
         printf("%s", shm_ptr->buffer);
-        if(shm_ptr->buffer_size != 0)
-            fprintf(stderr, "Vista de bufer: %s\n", shm_ptr->buffer);
-        // Clear the buffer after processing to avoid repeated printing
-        // memset(shm_ptr->buffer, 0, sizeof(shm_ptr->buffer));
+        memset(shm_ptr->buffer, 0, sizeof(shm_ptr->buffer));
         
 
     } while (shm_ptr->buffer_size != 0); // Exit when there's no more data
